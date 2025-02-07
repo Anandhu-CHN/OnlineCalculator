@@ -1,0 +1,116 @@
+
+<html>
+    <head>
+        <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    
+      <title></title></title>
+        
+    
+<style>
+  button{background:red;
+ border-radius:40px;
+ width:40px;
+ height:40px;
+ font-size:35;
+ color:#17b2e6;
+ font-family:bold;
+ 
+  }
+  
+  #keys{
+      background-color:black;
+      border-radius:20px;
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:10px;
+      padding:20px;
+      width:200px;
+      height:230px;
+  }
+  #display{background:#191f1c; 
+       width:230px;
+      height:110px;
+      font:4rem;
+      padding:10px;
+      text-align:center;
+      border-radius:10px;
+  }
+  #keys{
+     text-align: center; 
+     
+  }
+  #txt{text-align:right;
+      background-color:#39363b;
+      font:4rem;
+      padding:10px;
+      width:200px;
+      color:white;
+      height:50px;
+      
+  }
+  h2{
+      color: white;
+  }
+  
+  button:hover{border:3px solid #7ef01a ;
+      curser:pointer;
+      width:45px;
+      height:45px;
+  }
+  #yu{
+      color:blue;
+  }
+  .button.operator{
+      background-color:#172ce6;
+  }
+</style>
+
+</head>
+
+<body bgcolor="pink">
+<h1>Calculator</h1>
+<center>
+    
+
+<div id="display">
+ 
+  <h2>CASIO</h2>
+
+  <input type="text" readonly id="txt" /> 
+
+<div id="keys" style="background-color:black">
+
+
+<button class="operator" onclick="appendtoDisplay('+')">+</button>
+<button class="operator" onclick="appendtoDisplay('-')">-</button>
+<button class="operator" onclick="appendtoDisplay('/')">/</button>
+<button class="operator" onclick="appendtoDisplay('*')">×</button>
+<button style="background-color:yellow"onclick="cleardisplay()">C</button>
+<button onclick="appendtoDisplay(9)">9</button>
+<button onclick="appendtoDisplay(0)">0</button>
+<button onclick="appendtoDisplay(8)">8</button>
+<button onclick="appendtoDisplay(6)">6</button>
+<button onclick="appendtoDisplay(7)">7</button>
+<button onclick="appendtoDisplay(5)">5</button>
+<button onclick="appendtoDisplay(4)">4</button>
+<button onclick="appendtoDisplay(1)">1</button>
+<button onclick="appendtoDisplay(2)">2</button>
+<button onclick="appendtoDisplay(3)">3</button>
+<button onclick="appendtoDisplay('.')">.</button>
+<button style="background-color:#1bf576" onclick="calculate()">=</button>
+
+</div>
+<br>
+<marquee direction="right" id="yu"> This is an Online Calculator Program.
+</marquee>
+
+</div>
+
+</center>
+
+<script src="function.js">
+    
+</script> 
+
+</body>
+</html>
