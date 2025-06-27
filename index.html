@@ -118,7 +118,6 @@ left:15%;
 
 <body> 
  
-
     
 <div id="whole"> 
 <div id="display"> 
@@ -148,7 +147,7 @@ left:15%;
 <button onclick="appendtoDisplay(1)">1</button>
 <button onclick="appendtoDisplay(2)">2</button>
 <button onclick="appendtoDisplay(3)">3</button>
-<button onclick="appendtoDisplay('.')">.</button>
+<button onclick="appendtoDisplay('.'),clickSound.play()">.</button>
 <button style="background-color:#1bf576" onclick="calculate()">=</button>
 
 </div>
@@ -163,7 +162,10 @@ left:15%;
 
 </div>
 
-
+    <audio id="clickSound" preload="auto">
+        
+        <source src="https://www.fesliyanstudios.com/play-mp3/387" type="audio/mpeg">
+        
 
 </center>
 
