@@ -132,23 +132,23 @@ left:15%;
 <div id="keys" style="background-color:white">
 
 
-<button class="operator" onclick="appendtoDisplay('+')">+</button>
-<button class="operator" onclick="appendtoDisplay('-')">-</button>
-<button class="operator" onclick="appendtoDisplay('/')">/</button>
-<button class="operator" onclick="appendtoDisplay('*')">×</button>
-<button style="background-color:yellow"onclick="cleardisplay()">C</button>
-<button onclick="appendtoDisplay(9)">9</button>
-<button onclick="appendtoDisplay(0)">0</button>
-<button onclick="appendtoDisplay(8)">8</button>
-<button onclick="appendtoDisplay(6)">6</button>
-<button onclick="appendtoDisplay(7)">7</button>
-<button onclick="appendtoDisplay(5)">5</button>
-<button onclick="appendtoDisplay(4)">4</button>
-<button onclick="appendtoDisplay(1)">1</button>
-<button onclick="appendtoDisplay(2)">2</button>
-<button onclick="appendtoDisplay(3)">3</button>
+<button class="operator" onclick="appendtoDisplay('+'),clickSound.play()">+</button>
+<button class="operator" onclick="appendtoDisplay('-'),clickSound.play()">-</button>
+<button class="operator" onclick="appendtoDisplay('/'),clickSound.play()">/</button>
+<button class="operator" onclick="appendtoDisplay('*'),clickSound.play()">×</button>
+<button style="background-color:yellow"onclick="cleardisplay(),clickSound.play()">C</button>
+<button onclick="appendtoDisplay(9),clickSound.play()">9</button>
+<button onclick="appendtoDisplay(0),clickSound.play()">0</button>
+<button onclick="appendtoDisplay(8),clickSound.play()">8</button>
+<button onclick="appendtoDisplay(6),clickSound.play()">6</button>
+<button onclick="appendtoDisplay(7),clickSound.play()">7</button>
+<button onclick="appendtoDisplay(5),clickSound.play()">5</button>
+<button onclick="appendtoDisplay(4),clickSound.play()">4</button>
+<button onclick="appendtoDisplay(1),clickSound.play()">1</button>
+<button onclick="appendtoDisplay(2),clickSound.play()">2</button>
+<button onclick="appendtoDisplay(3),clickSound.play()">3</button>
 <button onclick="appendtoDisplay('.'),clickSound.play()">.</button>
-<button style="background-color:#1bf576" onclick="calculate()">=</button>
+<button style="background-color:#1bf576" onclick="calculate(),clickSound.play()">=</button>
 
 </div>
 
