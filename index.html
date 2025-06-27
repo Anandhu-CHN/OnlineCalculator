@@ -8,18 +8,18 @@
         
     
 <style>
-  button{background:red;
- border-radius:40px;
+  button{background:#78d0ff;
+ border-radius:10px;
  width:40px;
  height:40px;
  font-size:35;
- color:#17b2e6;
+ color:#2441ff;
  font-family:bold;
- 
+ border:solid #fff2f2;
   }
   
   #keys{
-      background-color:black;
+      background-color:white;
       border-radius:20px;
       display:grid;
       grid-template-columns:repeat(4,1fr);
@@ -28,18 +28,37 @@
       width:200px;
       height:230px;
   }
-  #display{background:black; 
-       width:230px;
+  #display{background:white; 
+       width:267px;
       height:120px;
       font:4rem;
-      padding:10px;
+      padding-top:5px;
+padding-bottom:15px;
       text-align:center;
       border-radius:15px;
-  }
+animation: intro-h 1s ease-in-out 1 forwards;
+  border:1px solid grey;
+        
+  } 
   #keys{
      text-align: center; 
+animation: intro-h 1s ease-in-out 1 forwards;
+
+border:1px solid grey;
      
   }
+ 
+@keyframes intro-h {
+  0% { 
+transform: scale(0);
+ }
+  50% { 
+
+ }
+  100% { 
+transform: scale(1);
+ }
+}
   #txt{text-align:right;
       background-color:#39363b;
       font:4rem;
@@ -47,6 +66,8 @@
       width:200px;
       color:white;
       height:50px;
+animation: intro-h 1s ease-in-out 1 forwards;
+     
       
   }
   h2{
@@ -62,29 +83,53 @@
       color:blue;
   }
   .button.operator{
-      background-color:#172ce6;
+      background-color:#68b7e8;
   }
 
 body{
 
-background: linear-gradient(60deg,#ff00a6,#ff8ac8) fixed;
+background: linear-gradient(60deg,#92e0da,#78ebff) fixed;
 }
+
+#key-pad{
+background-color:white;
+width:240px;
+height:260px;
+padding: 15px;
+border-radius:20px;
+animation: intro-h 1s ease-in-out 1 forwards;
+border:1px solid grey;
+     
+}
+
+.operator{
+background-color:#ff5d2b;
+}
+
+#whole{
+position:relative;
+top:15%;
+left:15%;
+} 
 </style>
 
 </head>
 
-<body>
-<h1>Calculator</h1>
-<center> 
-    
-
-<div id="display">
+<body> 
  
-  <h2>CASIO</h2>
+
+    
+<div id="whole"> 
+<div id="display"> 
+ 
+  <h1>Calculator</h1>
 
   <input type="text" readonly id="txt" /> 
 
-<div id="keys" style="background-color:black">
+</div>
+
+<div id="key-pad">
+<div id="keys" style="background-color:white">
 
 
 <button class="operator" onclick="appendtoDisplay('+')">+</button>
@@ -106,11 +151,18 @@ background: linear-gradient(60deg,#ff00a6,#ff8ac8) fixed;
 <button style="background-color:#1bf576" onclick="calculate()">=</button>
 
 </div>
-<br>
+
+</div>
+
+<br> 
+
+
 <marquee direction="right" id="yu"> This is an Online Calculator Program.
 </marquee>
 
 </div>
+
+
 
 </center>
 
