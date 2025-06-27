@@ -1,5 +1,6 @@
 alert("Welcome to a Calculator Program ");
-
+const clickSound = document.getElementById('clickSound');
+      
 
 const display = document.getElementById("txt");
 
