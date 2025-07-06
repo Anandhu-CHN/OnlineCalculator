@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Navira</title>
+
+
+<style> 
+
+.main{
+width:100%;
+height:400px;
+background-color:rgba(205,10,120,.6);
+font-family:roboto,liberation-sans;
+color:white;
+font-size:58px;
+text-align: center;
+padding-top: 199px;
+border: .7px solid cyan;
+z-index:5;
+position:relative;
+border-radius: 9px;
+margin-top: 13px;
+}
+
+Body{
+display: flex;
+flex-direction: column;
+gap: 20px;
+justify-content: space-evenly;
+background: linear-gradient(to right,#381e1e, #141010) fixed;
+padding-bottom:50px;
+}
+ 
+
+.cs{
+width:100%;
+color:#fff7f7;
+background-color:rgba(255,0,255,0.5);
+border-radius:11px;
+padding: 12px;
+font-size:20px;
+border:.6px solid red;
+
+transition: transform 0.3s ease, box-shadow 0.3s ease; /* Smooth hover transition */
+
+            
+            animation:myAnimation 1s ease 1 normal forwards;
+            
+            opacity: 0; 
+            transform: scale(0.05);
+            animation-timeline: view();
+            animation-range: entry 0% cover 50%; 
+
+
+}
+
+@keyframes myAnimation {
+            0% {
+                opacity: 0;
+                transform: scale(0.05);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1); 
+            }
+        }
+
+#contents{
+display: flex;
+flex-direction: column;
+justify-content: space-evenly;
+align-items: center;
+gap:20px;
+}
+
+#im-ground{
+background-image: url('https://navira.cecieee.org/assets/photo1-YQo89VUh.webp');
+position: relative;
+top:0;
+width:100%;
+height:400px;
+}
+h1{
+font-family:;
+}
+#Organisers,#Sponsers{
+display: flex;
+flex-direction: column;
+justify-content: space-evenly;
+align-items: center;
+}
+
+.cs>h1,.cs>h2{
+text-align: center;}
+
+
+
+#moment{
+color:white;
+font-family:arial,poppins;
+font-size: 34px;
+margin-top:200px;
+text-align: center;
+}
+.photos {
+margin: 15px;
+border-radius:5px;}
+   
+.h2{
+font-size:38px;
+}
+
+#header{
+position:fixed;
+width:100%;
+height:62px;
+background-color:white;
+z-index: 6;
+top:1px;
+}
+
+
+#header>button{
+text-align:center;
+width:45px;
+font-size:32px;
+height:45px;
+border: .82px solid grey;
+z-index:6;
+
+
+}
+
+#header>button:active{
+border: 2px solid green;
+background-color:cyan;
+}
+
+#indicator{
+height:4px;
+background-color:#ff4f4f;
+border-radius:20%;
+animation: scrolling-indicator 1s linear normal forwards;
+animation-timeline: scroll(root);
+}
+
+@keyframes  scrolling-indicator{
+  from { width:0%; }
+  to { width:100%; }
+}
+
+.Super{
+font-family: Sans-serif;
+font-size:35px; 
+font-weight: underline;
+}
+
+#done{
+width:100px;
+height:50px;
+border:2px solid cyan;
+border-radius: 8px;
+background-color:#ffebf0;
+margin:center;
+}
+
+#done:hover{
+background-color:cyan;
+border:2px solid #ffebf0;
+}
+#foot{
+background-color: white;
+font-family:arial; 
+position:relative;
+bottom:0px;
+}
+</style>
+
+</head>
+<body>
+
+
+<div id="header"> 
+
+<button><center>&#x2261;</center>
+</button>
+
+<div id="indicator"></div>
+
+</div>
+
+
+
+</div>
+<center>
+ <div id="im-ground">
+<div class="main">Navira</div>
+</div>
+ </center>
+
+
+<h1 id="moment">Special Moments </h1>
+
+<img src="https://navira.cecieee.org/assets/photo7-0sILAsZ4.webp" class="photos">
+
+<img src="https://navira.cecieee.org/assets/vol-j2_HE4BS.webp" class="photos">
+
+<img src="https://navira.cecieee.org/assets/photo3-vpZOzsoj.webp" class="photos">
+</center>
+<div id="contents">
+<div class="cs">
+<h2 class="Super"> Navira: </h2>
+ Journey Beyond Limits, an all-Kerala event by IEEE Women in Engineering Affinity Group College of Engineering Chengannur(WIE AG CEC), and IEEE Industry Applications Society Student Branch Chapter College of Engineering Chengannur (IAS SBC CEC)
+</div>
+
+<div class="cs">
+<h1>About Navira</h1> 
+Navira: Journey Beyond Limits, an all-Kerala event by IEEE Women in Engineering Affinity Group College of Engineering Chengannur(WIE AG CEC), and IEEE Industry Applications Society Student Branch Chapter College of Engineering Chengannur (IAS SBC CEC), emerges as a perfect platform to blend knowledge, creativity, and innovation. Navira is the combined successor to the flagship events Daksha and Emergence, conducted in previous years by IEEE WIE AG CEC and IEEE IAS SBC CEC. It promises to deliver an inexplicable experience through the fusion of unparalleled vision and elegance.
+</div>
+<div class="cs"></div>
+
+
+<div class="cs" id="Organisers">
+<h class="Super">Organisers </h1>
+<br>
+<br> 
+
+<center>
+<img src="https://navira.cecieee.org/assets/IEEE-logo-WHITE-Ir0SCLt6.png">
+
+<img src="https://navira.cecieee.org/assets/ieee_sb_cec_logo_white-hQpzMFeD.png" width="60%" height="23%">
+<img src="https://navira.cecieee.org/assets/wie-WHITE-9mOJtutP.png">
+<img src="https://navira.cecieee.org/assets/ias-png-white-I4_TATKT.png">
+</center>
+
+</div>
+
+<div class="cs">
+<h class="Super">Sponsers </h1>
+<br></br>
+
+<center>
+<img src="https://navira.cecieee.org/assets/notion-tV1Crw5A.png" width="50"> 
+
+<br>
+<img src="https://navira.cecieee.org/assets/foundation-SGEUrQwJ.png" width="60%" height="22%"> 
+
+<br> 
+
+<img src="https://navira.cecieee.org/assets/YP-sRKhpanL.png">
+
+<br> 
+
+<img src="https://navira.cecieee.org/assets/jt-logo-31ArIwU_.png" width="60%" height="22%">
+</center>
+
+</div>
+<div class="cs">
+
+<h class="Super">Internship Partner </h1>
+<center>
+<img src="https://navira.cecieee.org/assets/XR%20Horizon%20Logo%20HD-SVjPh89L.png" width="100%" height="96%;">
+</center>
+ 
+</div>
+<div class="cs">
+<h1 id="works">Workshops </h1>
+</div>
+<div class="cs">
+<h1 class="Super">Sensor Integration and IOT development</h1>
+
+
+The efficacy in transmitting and receiving real-time data is crucial in applications where timely and accurate information is essential. The workshop on Sensor Integration and IoT by Navira offers an opportunity to enhance skills in sensor integration and IoT solution development.
+</div>
+<div class="cs">
+
+<h1 class="Super">AI and ML for Healthcare, Finance, and EVs</h1>
+
+The integration of AI and ML in healthcare, finance, and EVs is redefining innovation and efficiency. Navira: Journey Beyond Limits brings you a workshop to explore their real-world applications in diagnostics, analytics, and EVs.
+</div>
+<div class="cs"></div>
+<div class="cs" id="register"> 
+<h1>GET YOUR TICKET</h1>
+Be part of the tech revolution at Navira - reserve your tickets today for a glimpse into tomorrow's world.
+
+<br>
+<button id="done">Register</button>
+
+</div>
+
+</div>
+
+<div id="foot">
+<footer>© Demo clone website of Navira</footer>
+</div>
+</body>
+</html>
