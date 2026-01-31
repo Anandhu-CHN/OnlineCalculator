@@ -3,107 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Offline English Tutor</title>
+    <title>Gemini Simulator (Local)</title>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/universal-sentence-encoder"></script>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-900 text-white flex flex-col h-screen p-6">
+<body class="bg-gray-100 h-screen flex flex-col">
 
-    <div id="loader" class="text-center mt-20">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
-        <p class="mt-4 text-blue-400">Loading Local Brain (TF.js)...</p>
-    </div>
+    <nav class="bg-white p-4 shadow-sm flex justify-between items-center">
+        <div class="flex items-center gap-2">
+            <div class="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+            <span class="font-bold text-gray-700">Gemini Local-v1</span>
+        </div>
+        <span id="engine-status" class="text-xs font-mono text-gray-400">LOADING TENSORFLOW...</span>
+    </nav>
 
-    <div id="main-ui" class="hidden flex-col h-full">
-        <header class="border-b border-slate-700 pb-4 mb-4">
-            <h1 class="text-xl font-bold">Local Fluency Buddy</h1>
-            <p class="text-xs text-slate-400">Privacy Mode: No API Keys Required</p>
-        </header>
-
-        <div id="chat" class="flex-1 overflow-y-auto space-y-4 mb-6">
-            <div class="bg-slate-800 p-3 rounded-lg max-w-[80%]">Hi! I'm running locally on your phone. We can talk about hobbies, food, or movies!</div>
+    <div id="chat-area" class="flex-1 overflow-y-auto p-4 space-y-4">
         </div>
 
-        <div class="flex flex-col items-center pb-8">
-            <button id="micBtn" class="w-20 h-20 bg-emerald-500 rounded-full shadow-lg shadow-emerald-500/20 flex items-center justify-center text-3xl">🎤</button>
-            <p id="status" class="mt-4 text-slate-400 text-sm italic">Tap to talk</p>
-        </div>
+    <div class="p-6 bg-white border-t flex flex-col items-center">
+        <button id="micBtn" class="w-16 h-16 bg-gradient-to-tr from-blue-600 to-purple-600 rounded-full text-white text-2xl shadow-lg disabled:opacity-50" disabled>🎤</button>
+        <p id="hint" class="mt-2 text-gray-400 text-sm">Initializing local model...</p>
     </div>
 
 <script>
     let model;
-    const chat = document.getElementById('chat');
+    const chatArea = document.getElementById('chat-area');
     const micBtn = document.getElementById('micBtn');
+    const status = document.getElementById('engine-status');
 
-    // Local Response Database (The "Brain")
-    const responses = [
-        { intent: "greeting", examples: ["hello", "hi", "hey"], reply: "Hello! How are you feeling today?" },
-        { intent: "food", examples: ["hungry", "pizza", "food", "cook"], reply: "I love talking about food. What's your favorite meal?" },
-        { intent: "hobby", examples: ["sports", "music", "hobby", "hobbies"], reply: "That sounds fun! I wish I had hobbies, but I'm just code." },
-        { intent: "default", examples: [], reply: "That's interesting! Tell me more about that so I can help you practice." }
+    // 1. LOCAL KNOWLEDGE DATABASE
+    const localBrain = [
+        { q: "How are you?", a: "I'm functioning perfectly on your local device! How is your English practice going?" },
+        { q: "What is your name?", a: "You can call me Gemini Local. I don't need the internet to talk to you." },
+        { q: "Tell me a joke", a: "Why did the programmer quit his job? Because he didn't get arrays (a raise)!" },
+        { q: "Weather and outside", a: "I can't check the live weather without an API, but it's always sunny in my code!" },
+        { q: "Help me with English", a: "Of course! Try telling me about your favorite movie, and I will listen to your pronunciation." }
     ];
 
-    async function init() {
+    async function initTF() {
         model = await use.load();
-        document.getElementById('loader').classList.add('hidden');
-        document.getElementById('main-ui').classList.remove('hidden');
-        document.getElementById('main-ui').classList.add('flex');
+        status.innerText = "ENGINE: LOCAL_TFJS_READY";
+        micBtn.disabled = false;
+        document.getElementById('hint').innerText = "Tap to talk (Offline)";
     }
-    init();
+    initTF();
 
     const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
     recognition.lang = 'en-US';
 
-    micBtn.onclick = () => {
-        recognition.start();
-        document.getElementById('status').innerText = "Listening...";
-        micBtn.classList.replace('bg-emerald-500', 'bg-red-500');
-    };
+    micBtn.onclick = () => recognition.start();
 
     recognition.onresult = async (event) => {
-        const text = event.results[0][0].transcript;
-        addMessage(text, 'user');
+        const userSpeech = event.results[0][0].transcript;
+        addMessage(userSpeech, 'user');
         
-        // --- TensorFlow.js Logic ---
-        const userEmbedding = await model.embed([text.toLowerCase()]);
-        let bestMatch = responses[3]; // Default
-        let highestScore = 0;
+        // --- SIMULATE API DELAY ---
+        status.innerText = "PROCESSING VECTOR...";
+        
+        // Turn user speech into math
+        const embeddings = await model.embed([userSpeech.toLowerCase()]);
+        const userVec = embeddings.arraySync()[0];
 
-        for (const res of responses) {
-            if (res.intent === "default") continue;
-            const exampleEmbeddings = await model.embed(res.examples);
+        // Find closest match in local brain
+        let bestReply = "That's an interesting point! Could you explain that more simply? I'm learning your style.";
+        let topScore = -1;
+
+        for (let item of localBrain) {
+            const itemEmbed = await model.embed([item.q.toLowerCase()]);
+            const itemVec = itemEmbed.arraySync()[0];
             
-            // Calculate Similarity (Dot Product)
-            const score = tf.matMul(userEmbedding, exampleEmbeddings, false, true).dataSync();
-            const maxScore = Math.max(...score);
+            // Math trick: Dot product similarity
+            const score = userVec.reduce((acc, val, i) => acc + val * itemVec[i], 0);
             
-            if (maxScore > highestScore && maxScore > 0.5) {
-                highestScore = maxScore;
-                bestMatch = res;
+            if (score > topScore && score > 0.6) {
+                topScore = score;
+                bestReply = item.a;
             }
         }
 
-        addMessage(bestMatch.reply, 'ai');
-        speak(bestMatch.reply);
-    };
-
-    recognition.onend = () => {
-        micBtn.classList.replace('bg-red-500', 'bg-emerald-500');
-        document.getElementById('status').innerText = "Tap to talk";
+        setTimeout(() => {
+            addMessage(bestReply, 'ai');
+            speak(bestReply);
+            status.innerText = "ENGINE: IDLE";
+        }, 1200); // Fake "API Latency"
     };
 
     function addMessage(text, sender) {
         const div = document.createElement('div');
-        div.className = sender === 'ai' ? "bg-slate-800 p-3 rounded-lg max-w-[80%]" : "bg-emerald-600 p-3 rounded-lg self-end max-w-[80%] ml-auto shadow-md";
+        div.className = sender === 'user' ? "bg-blue-500 text-white p-3 rounded-2xl ml-auto max-w-[80%]" : "bg-gray-200 text-gray-800 p-3 rounded-2xl mr-auto max-w-[80%]";
         div.innerText = text;
-        chat.appendChild(div);
-        chat.scrollTop = chat.scrollHeight;
+        chatArea.appendChild(div);
+        chatArea.scrollTop = chatArea.scrollHeight;
     }
 
     function speak(text) {
         const utter = new SpeechSynthesisUtterance(text);
-        utter.lang = 'en-US';
         window.speechSynthesis.speak(utter);
     }
 </script>
