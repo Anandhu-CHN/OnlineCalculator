@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline English Tutor</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/universal-sentence-encoder"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-white flex flex-col h-screen p-6">
+
+    <div id="loader" class="text-center mt-20">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
+        <p class="mt-4 text-blue-400">Loading Local Brain (TF.js)...</p>
+    </div>
+
+    <div id="main-ui" class="hidden flex-col h-full">
+        <header class="border-b border-slate-700 pb-4 mb-4">
+            <h1 class="text-xl font-bold">Local Fluency Buddy</h1>
+            <p class="text-xs text-slate-400">Privacy Mode: No API Keys Required</p>
+        </header>
+
+        <div id="chat" class="flex-1 overflow-y-auto space-y-4 mb-6">
+            <div class="bg-slate-800 p-3 rounded-lg max-w-[80%]">Hi! I'm running locally on your phone. We can talk about hobbies, food, or movies!</div>
+        </div>
+
+        <div class="flex flex-col items-center pb-8">
+            <button id="micBtn" class="w-20 h-20 bg-emerald-500 rounded-full shadow-lg shadow-emerald-500/20 flex items-center justify-center text-3xl">🎤</button>
+            <p id="status" class="mt-4 text-slate-400 text-sm italic">Tap to talk</p>
+        </div>
+    </div>
+
+<script>
+    let model;
+    const chat = document.getElementById('chat');
+    const micBtn = document.getElementById('micBtn');
+
+    // Local Response Database (The "Brain")
+    const responses = [
+        { intent: "greeting", examples: ["hello", "hi", "hey"], reply: "Hello! How are you feeling today?" },
+        { intent: "food", examples: ["hungry", "pizza", "food", "cook"], reply: "I love talking about food. What's your favorite meal?" },
+        { intent: "hobby", examples: ["sports", "music", "hobby", "hobbies"], reply: "That sounds fun! I wish I had hobbies, but I'm just code." },
+        { intent: "default", examples: [], reply: "That's interesting! Tell me more about that so I can help you practice." }
+    ];
+
+    async function init() {
+        model = await use.load();
+        document.getElementById('loader').classList.add('hidden');
+        document.getElementById('main-ui').classList.remove('hidden');
+        document.getElementById('main-ui').classList.add('flex');
+    }
+    init();
+
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = 'en-US';
+
+    micBtn.onclick = () => {
+        recognition.start();
+        document.getElementById('status').innerText = "Listening...";
+        micBtn.classList.replace('bg-emerald-500', 'bg-red-500');
+    };
+
+    recognition.onresult = async (event) => {
+        const text = event.results[0][0].transcript;
+        addMessage(text, 'user');
+        
+        // --- TensorFlow.js Logic ---
+        const userEmbedding = await model.embed([text.toLowerCase()]);
+        let bestMatch = responses[3]; // Default
+        let highestScore = 0;
+
+        for (const res of responses) {
+            if (res.intent === "default") continue;
+            const exampleEmbeddings = await model.embed(res.examples);
+            
+            // Calculate Similarity (Dot Product)
+            const score = tf.matMul(userEmbedding, exampleEmbeddings, false, true).dataSync();
+            const maxScore = Math.max(...score);
+            
+            if (maxScore > highestScore && maxScore > 0.5) {
+                highestScore = maxScore;
+                bestMatch = res;
+            }
+        }
+
+        addMessage(bestMatch.reply, 'ai');
+        speak(bestMatch.reply);
+    };
+
+    recognition.onend = () => {
+        micBtn.classList.replace('bg-red-500', 'bg-emerald-500');
+        document.getElementById('status').innerText = "Tap to talk";
+    };
+
+    function addMessage(text, sender) {
+        const div = document.createElement('div');
+        div.className = sender === 'ai' ? "bg-slate-800 p-3 rounded-lg max-w-[80%]" : "bg-emerald-600 p-3 rounded-lg self-end max-w-[80%] ml-auto shadow-md";
+        div.innerText = text;
+        chat.appendChild(div);
+        chat.scrollTop = chat.scrollHeight;
+    }
+
+    function speak(text) {
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = 'en-US';
+        window.speechSynthesis.speak(utter);
+    }
+</script>
+</body>
+</html>
