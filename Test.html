@@ -1,172 +1,218 @@
-
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-        <style>
-            :root { --accent: #00d2ff; --bg: #05050a; }
-            body, #diya-app { 
-                margin: 0; padding: 0; width: 100%; height: 100vh; 
-                background: var(--bg); color: white; font-family: sans-serif; 
-                display: flex; flex-direction: column; overflow: hidden;
-            }
-            #canvas-container { flex: 1; width: 100%; }
-            .ui { 
-                padding: 20px; background: rgba(0,0,0,0.8); 
-                display: flex; flex-direction: column; align-items: center; gap: 15px;
-            }
-            #transcript { 
-                background: rgba(255,255,255,0.05); padding: 15px; border-radius: 15px;
-                width: 90%; text-align: center; font-size: 14px; min-height: 40px;
-            }
-            .mic-btn { 
-                width: 70px; height: 70px; border-radius: 50%; border: none; 
-                background: var(--accent); color: white; font-size: 30px; cursor: pointer;
-                box-shadow: 0 0 15px rgba(0, 210, 255, 0.4);
-            }
-            .listening { background: #ff4b2b; animation: pulse 1s infinite; }
-            @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
-            .overlay { 
-                position: fixed; inset: 0; background: var(--bg); z-index: 100;
-                display: flex; flex-direction: column; align-items: center; justify-content: center;
-            }
-            input { padding: 12px; border-radius: 8px; border: 1px solid #333; background: #111; color: var(--accent); margin-bottom: 15px; width: 260px; text-align: center; }
-        </style>
-    </head>
-    <body>
-
-    <div id="diya-app">
-        <div id="setup" class="overlay">
-            <h2 style="letter-spacing:3px">DIYA TUTOR</h2>
-            <p style="font-size: 12px; color: #666;">Token Name: Diya_Tutor</p>
-            <input type="password" id="hfToken" placeholder="Paste HF Token (hf_...)">
-            <button onclick="startApp()" style="padding: 12px 40px; background: var(--accent); border: none; border-radius: 20px; color: white; font-weight: bold; cursor: pointer;">WAKE UP</button>
-        </div>
-
-        <div id="canvas-container"></div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Diya AI Tutor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        :root { 
+            --g-blue: #4285f4; --g-red: #ea4335; 
+            --g-yellow: #fbbc05; --g-green: #34a853; 
+        }
         
-        <div class="ui">
-            <div id="status" style="font-size: 10px; color: var(--accent);">READY</div>
-            <div id="transcript">Tap the mic to talk to Diya</div>
-            <button class="mic-btn" id="micBtn" onclick="toggleMic()">🎤</button>
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            background: #000; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        /* Gemini Background Mesh */
+        #bg-canvas { position: absolute; top: 0; left: 0; z-index: 1; filter: blur(60px); opacity: 0.5; }
+
+        .main-shell {
+            position: relative; z-index: 10; width: 100%; height: 100vh;
+            display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+            padding-bottom: env(safe-area-inset-bottom, 40px);
+        }
+
+        /* Glassmorphism Chat Bubble */
+        .chat-bubble {
+            width: 90%; max-width: 450px; margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+            border-radius: 28px; border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 24px; box-sizing: border-box;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+        }
+
+        #status-indicator { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #9aa0a6; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+        #status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--g-blue); transition: 0.3s; }
+        
+        #transcript { 
+            color: #fff; font-size: 17px; line-height: 1.5; text-align: left;
+            min-height: 50px; margin-top: 15px; font-weight: 400;
+        }
+
+        /* Voice Button */
+        .mic-btn {
+            width: 72px; height: 72px; border-radius: 50%;
+            background: #fff; border: none; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 20px rgba(255,255,255,0.1);
+            transition: transform 0.2s cubic-bezier(0.2, 0, 0.2, 1);
+        }
+        .mic-btn:active { transform: scale(0.9); }
+        .mic-btn svg { width: 30px; height: 30px; fill: #1f1f1f; }
+
+        .pulse { animation: pulse-ring 1.5s infinite; }
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(66, 133, 244, 0.5); }
+            70% { box-shadow: 0 0 0 20px rgba(66, 133, 244, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(66, 133, 244, 0); }
+        }
+
+        /* Overlay for Token Entry */
+        .login-overlay {
+            position: fixed; inset: 0; z-index: 100; background: #000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px;
+        }
+        input {
+            background: #1a1a1a; border: 1px solid #333; color: #fff;
+            padding: 16px; border-radius: 12px; width: 100%; max-width: 300px;
+            font-size: 16px; margin-bottom: 20px; text-align: center; outline: none;
+        }
+        .start-btn {
+            background: #fff; color: #000; border: none; padding: 14px 40px;
+            border-radius: 30px; font-weight: 700; cursor: pointer; font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+
+<div id="login" class="login-overlay">
+    <h1 style="color:#fff; font-weight: 300; margin-bottom: 30px;">Diya <span style="color:var(--g-blue)">Tutor</span></h1>
+    <input type="password" id="hfToken" placeholder="Paste Hugging Face Token">
+    <button class="start-btn" onclick="initApp()">Get Started</button>
+</div>
+
+<div class="main-shell">
+    <div class="chat-bubble">
+        <div id="status-indicator">
+            <div id="status-dot"></div>
+            <span id="status-text">Connected</span>
         </div>
+        <div id="transcript">Tap the mic to start your lesson.</div>
     </div>
 
-    <script>
-        let token, scene, camera, renderer, avatar, recognition;
-        const synth = window.speechSynthesis;
-        let isSpeaking = false;
+    <button class="mic-btn" id="micBtn" onclick="toggleMic()">
+        <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+    </button>
+    <div style="height: 30px;"></div>
+</div>
 
-        function init3D() {
-            scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / (window.innerHeight * 0.6), 0.1, 1000);
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setSize(window.innerWidth, window.innerHeight * 0.6);
-            document.getElementById('canvas-container').appendChild(renderer.domElement);
+<script>
+    let token, scene, camera, renderer, recognition;
+    const synth = window.speechSynthesis;
+    let isSpeaking = false;
+    let blobs = [];
 
-            const geo = new THREE.TorusKnotGeometry(0.7, 0.2, 100, 16);
-            const mat = new THREE.MeshStandardMaterial({ color: 0x00d2ff, wireframe: true });
-            avatar = new THREE.Mesh(geo, mat);
-            scene.add(avatar);
+    // Background Animation
+    function initBackground() {
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('bg-canvas'), antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
 
-            scene.add(new THREE.AmbientLight(0xffffff, 1.5));
-            camera.position.z = 2.5;
-
-            function animate() {
-                requestAnimationFrame(animate);
-                avatar.rotation.y += 0.01;
-                if(isSpeaking) {
-                    avatar.scale.setScalar(1 + Math.sin(Date.now() * 0.01) * 0.1);
-                }
-                renderer.render(scene, camera);
-            }
-            animate();
+        const colors = [0x4285f4, 0xea4335, 0xfbbc05, 0x34a853];
+        for(let i=0; i<4; i++) {
+            const mesh = new THREE.Mesh(
+                new THREE.SphereGeometry(2, 32, 32),
+                new THREE.MeshBasicMaterial({ color: colors[i] })
+            );
+            mesh.position.set(Math.random()*4-2, Math.random()*4-2, -5);
+            scene.add(mesh);
+            blobs.push({ mesh, vel: new THREE.Vector3(Math.random()*0.005, Math.random()*0.005, 0) });
         }
 
-        window.startApp = () => {
-            token = document.getElementById('hfToken').value.trim();
-            if(!token) return alert("Please enter your token.");
-            document.getElementById('setup').style.display = 'none';
-            init3D();
-            initMic();
-            speak("I am awake. How can I help you today?");
+        function animate() {
+            requestAnimationFrame(animate);
+            blobs.forEach(b => {
+                b.mesh.position.add(b.vel);
+                if(Math.abs(b.mesh.position.x) > 3) b.vel.x *= -1;
+                if(Math.abs(b.mesh.position.y) > 3) b.vel.y *= -1;
+            });
+            renderer.render(scene, camera);
+        }
+        animate();
+    }
+
+    window.initApp = () => {
+        token = document.getElementById('hfToken').value.trim();
+        if(!token) return alert("Please enter your token.");
+        document.getElementById('login').style.display = 'none';
+        initBackground();
+        initMic();
+        speak("Hi, I'm Diya. I'm ready for our session.");
+    };
+
+    async function askAI(input) {
+        updateStatus("Thinking", "var(--g-yellow)");
+        try {
+            const res = await fetch("https://api-inference.huggingface.co/v1/chat/completions", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    model: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
+                    messages: [{ role: "user", content: `You are Diya, a tutor. Answer briefly: ${input}` }],
+                    max_tokens: 100
+                })
+            });
+            const data = await res.json();
+            let reply = data.choices[0].message.content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+            speak(reply);
+        } catch (e) {
+            updateStatus("Error", "var(--g-red)");
+            speak("My connection is weak. Can you repeat that?");
+        }
+    }
+
+    function initMic() {
+        const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new Speech();
+        recognition.onstart = () => {
+            updateStatus("Listening", "var(--g-red)");
+            document.getElementById('micBtn').classList.add('pulse');
         };
-
-        async function askAI(input) {
-            document.getElementById('status').innerText = "THINKING...";
-            try {
-                // Using the NEW Chat Completion Router
-                const res = await fetch("https://api-inference.huggingface.co/v1/chat/completions", {
-                    method: "POST",
-                    headers: { 
-                        "Authorization": `Bearer ${token}`, 
-                        "Content-Type": "application/json" 
-                    },
-                    body: JSON.stringify({
-                        model: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
-                        messages: [
-                            { role: "system", content: "You are Diya, a friendly girl tutor. Keep answers short." },
-                            { role: "user", content: input }
-                        ],
-                        max_tokens: 100
-                    })
-                });
-
-                const data = await res.json();
-                
-                if(data.error) throw new Error(data.error.message || data.error);
-
-                let reply = data.choices[0].message.content;
-                // Remove reasoning tags if model includes them
-                reply = reply.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-                speak(reply);
-            } catch (e) {
-                document.getElementById('status').innerText = "BRAIN ERROR";
-                console.error(e);
-                speak("I'm sorry, my brain is a bit fuzzy right now.");
-            }
-        }
-
-        function initMic() {
-            const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognition = new Speech();
-            recognition.lang = 'en-US';
-            recognition.onstart = () => {
-                document.getElementById('status').innerText = "LISTENING...";
-                document.getElementById('micBtn').classList.add('listening');
-            };
-            recognition.onresult = (e) => {
-                const text = e.results[0][0].transcript;
-                document.getElementById('transcript').innerText = text;
-                askAI(text);
-            };
-            recognition.onend = () => {
-                document.getElementById('micBtn').classList.remove('listening');
-                if(!isSpeaking) document.getElementById('status').innerText = "READY";
-            };
-        }
-
-        window.toggleMic = () => { 
-            try { recognition.start(); } catch(e) { recognition.stop(); } 
+        recognition.onresult = (e) => {
+            const t = e.results[0][0].transcript;
+            document.getElementById('transcript').innerText = t;
+            askAI(t);
         };
+        recognition.onend = () => {
+            document.getElementById('micBtn').classList.remove('pulse');
+        };
+    }
 
-        function speak(text) {
-            isSpeaking = true;
-            recognition.stop();
-            const msg = new SpeechSynthesisUtterance(text);
-            msg.onstart = () => {
-                document.getElementById('status').innerText = "SPEAKING...";
-                document.getElementById('transcript').innerText = text;
-            };
-            msg.onend = () => {
-                isSpeaking = false;
-                document.getElementById('status').innerText = "READY";
-            };
-            synth.speak(msg);
-        }
-    </script>
-    </body>
-    </html>
-  
+    function speak(text) {
+        isSpeaking = true;
+        recognition.stop();
+        updateStatus("Speaking", "var(--g-green)");
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.onstart = () => document.getElementById('transcript').innerText = text;
+        msg.onend = () => {
+            isSpeaking = false;
+            updateStatus("Ready", "var(--g-blue)");
+        };
+        synth.speak(msg);
+    }
+
+    function updateStatus(text, color) {
+        document.getElementById('status-text').innerText = text;
+        document.getElementById('status-dot').style.backgroundColor = color;
+    }
+
+    window.toggleMic = () => { 
+        if(isSpeaking) synth.cancel();
+        try { recognition.start(); } catch(e) { recognition.stop(); } 
+    };
+
+    window.addEventListener('resize', () => {
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+    });
+</script>
+</body>
+</html>
