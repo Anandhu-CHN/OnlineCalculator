@@ -3,104 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI English Live Tutor</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/universal-sentence-encoder"></script>
+    <title>Native Local AI Tutor</title>
+    <script type="module">
+        import * as webllm from "https://esm.run/@mlc-ai/web-llm";
+
+        let engine;
+        const status = document.getElementById("status");
+        const orb = document.getElementById("orb");
+        const transcript = document.getElementById("transcript");
+
+        // 1. Initialize Local Brain (Phi-3 is small & fast for mobile)
+        async function init() {
+            status.innerText = "Loading Local Brain (First time takes 1-2 mins)...";
+            try {
+                engine = await webllm.CreateMLCEngine("Phi-3-mini-4k-instruct-q4f16_1-MLC", {
+                    initProgressCallback: (report) => {
+                        status.innerText = report.text;
+                    }
+                });
+                status.innerText = "Local Brain Ready. Tap to Speak.";
+                document.getElementById("startBtn").disabled = false;
+            } catch (e) {
+                status.innerText = "WebGPU not supported. Use Chrome/Edge/Safari.";
+            }
+        }
+
+        // 2. Real-time Conversation Logic
+        async function chat(text) {
+            orb.className = "orb thinking";
+            const messages = [
+                { role: "system", content: "You are a fluent English tutor. Chat naturally. Correct grammar briefly if I make a mistake." },
+                { role: "user", content: text }
+            ];
+
+            const reply = await engine.chat.completions.create({ messages });
+            const aiText = reply.choices[0].message.content;
+            
+            document.getElementById("ai-reply").innerText = aiText;
+            speak(aiText);
+        }
+
+        // 3. Voice Logic (Native Speech)
+        function speak(text) {
+            orb.className = "orb speaking";
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.onend = () => { orb.className = "orb listening"; startListening(); };
+            window.speechSynthesis.speak(utter);
+        }
+
+        function startListening() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const rec = new SpeechRecognition();
+            rec.lang = 'en-US';
+            rec.onstart = () => { orb.className = "orb listening"; };
+            rec.onresult = (e) => {
+                const userText = e.results[0][0].transcript;
+                transcript.innerText = "You: " + userText;
+                chat(userText);
+            };
+            rec.start();
+        }
+
+        window.init = init;
+        window.startListening = startListening;
+        init();
+    </script>
     <style>
-        body { background: #000; color: #fff; font-family: 'Inter', sans-serif; display: flex; flex-direction: column; height: 100vh; margin: 0; align-items: center; justify-content: center; }
-        .orb { width: 200px; height: 200px; border-radius: 50%; background: linear-gradient(45deg, #4285f4, #9b51e0); filter: blur(15px); transition: all 0.3s ease; opacity: 0.6; }
-        .listening { transform: scale(1.1); filter: blur(30px); opacity: 1; animation: talk 0.8s infinite alternate; }
-        @keyframes talk { from { transform: scale(1); } to { transform: scale(1.2); } }
-        #text-box { margin-top: 30px; text-align: center; width: 80%; font-size: 22px; color: #bdc1c6; }
-        #ai-reply { margin-top: 15px; font-size: 18px; color: #8ab4f8; font-weight: bold; min-height: 1.5em; }
-        .btn-live { position: absolute; bottom: 50px; background: #fff; color: #000; border: none; padding: 15px 40px; border-radius: 50px; font-weight: bold; cursor: pointer; }
+        body { background: #000; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; height: 100vh; margin: 0; justify-content: center; }
+        .orb { width: 150px; height: 150px; border-radius: 50%; background: #4285f4; filter: blur(20px); transition: 0.5s; }
+        .listening { background: #34a853; transform: scale(1.2); animation: pulse 1s infinite; }
+        .thinking { background: #fbbc05; animation: rotate 2s infinite; }
+        .speaking { background: #ea4335; transform: scale(1.3); }
+        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+        #status { font-size: 12px; color: #666; position: absolute; top: 20px; text-align: center; width: 90%; }
+        #transcript { margin-top: 30px; font-size: 18px; color: #aaa; text-align: center; }
+        #ai-reply { margin-top: 10px; font-weight: bold; font-size: 20px; text-align: center; width: 85%; }
+        button { margin-top: 40px; padding: 15px 30px; border-radius: 30px; border: none; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
-
-<div class="orb" id="orb"></div>
-<div id="text-box">Tap "Start Live" and say hello!</div>
-<div id="ai-reply"></div>
-<button class="btn-live" id="actionBtn">START LIVE SESSION</button>
-
-<script>
-    let model, recognition;
-    const orb = document.getElementById('orb');
-    const textBox = document.getElementById('text-box');
-    const aiReply = document.getElementById('ai-reply');
-    const btn = document.getElementById('actionBtn');
-
-    // 1. Load Brain (Universal Sentence Encoder)
-    async function initAI() {
-        textBox.innerText = "Connecting to Neural Network...";
-        model = await use.load();
-        textBox.innerText = "Ready for 1:1 Conversation.";
-    }
-
-    // 2. The Interaction Logic (Responding to you)
-    async function getAIResponse(userText) {
-        const input = userText.toLowerCase();
-        let response = "";
-        let correction = "";
-
-        // Grammar Check Logic
-        if (input.includes("i is")) correction = "Careful, you should say 'I am'. ";
-        if (input.includes("how you is")) correction = "Try saying 'How are you'. ";
-
-        // Conversational Response Logic (Responding to your intent)
-        if (input.includes("hello") || input.includes("hi")) {
-            response = "Hello! I'm your English partner. What shall we discuss today?";
-        } else if (input.includes("how are you")) {
-            response = "I'm functioning perfectly and ready to help you practice English!";
-        } else if (input.includes("weather")) {
-            response = "I don't have a thermometer, but your English is sounding clear!";
-        } else if (input.includes("thank")) {
-            response = "You're very welcome. Your fluency is improving!";
-        } else {
-            response = "That's interesting. Tell me more about that so I can check your sentence structure.";
-        }
-
-        const finalOutput = correction + response;
-        aiReply.innerText = finalOutput;
-        speak(finalOutput);
-    }
-
-    // 3. Live Audio Loop
-    function startLive() {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-
-        recognition.onstart = () => {
-            orb.classList.add('listening');
-            btn.style.display = 'none';
-        };
-
-        recognition.onresult = (event) => {
-            let transcript = '';
-            for (let i = event.resultIndex; i < event.results.length; i++) {
-                transcript = event.results[i][0].transcript;
-                if (event.results[i].isFinal) {
-                    getAIResponse(transcript);
-                }
-            }
-            textBox.innerText = transcript;
-        };
-
-        recognition.onend = () => recognition.start(); // Auto-restart for continuous feel
-        recognition.start();
-    }
-
-    function speak(text) {
-        window.speechSynthesis.cancel(); // Stop current speech to respond to new input
-        const msg = new SpeechSynthesisUtterance(text);
-        msg.rate = 1.1;
-        window.speechSynthesis.speak(msg);
-    }
-
-    btn.onclick = () => { if(model) startLive(); };
-    initAI();
-</script>
+    <div id="status">Checking WebGPU...</div>
+    <div class="orb" id="orb"></div>
+    <div id="transcript">Waiting for AI...</div>
+    <div id="ai-reply"></div>
+    <button id="startBtn" onclick="startListening()" disabled>START CONVERSATION</button>
 </body>
 </html>
