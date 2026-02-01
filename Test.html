@@ -1,1 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Diya AI Tutor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        :root { --accent: #00d2ff; --bg: #05050a; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        
+        /* Responsive Viewport */
+        #canvas-container { height: 55%; width: 100%; position: relative; }
+        .ui-panel { height: 45%; background: linear-gradient(to top, #000 80%, transparent); display: flex; flex-direction: column; align-items: center; justify-content: space-around; padding: 15px; box-sizing: border-box; }
+        
+        /* Visual Feedback */
+        #status { font-size: 11px; letter-spacing: 2px; color: var(--accent); font-weight: bold; text-transform: uppercase; }
+        #transcript { background: rgba(255,255,255,0.07); backdrop-filter: blur(10px); padding: 15px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); width: 85%; max-width: 500px; text-align: center; font-size: 15px; min-height: 45px; }
 
+        /* Setup / Login */
+        .overlay { position: fixed; inset: 0; background: var(--bg); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; text-align: center; }
+        input { width: 100%; max-width: 280px; padding: 14px; border-radius: 12px; border: 1px solid #333; background: #111; color: var(--accent); margin-bottom: 20px; text-align: center; font-size: 16px; outline: none; }
+        .btn-start { padding: 16px 50px; background: var(--accent); border: none; border-radius: 35px; color: white; font-weight: bold; font-size: 18px; cursor: pointer; box-shadow: 0 5px 20px rgba(0, 210, 255, 0.4); }
+
+        /* Mobile Mic Button */
+        .mic-btn { width: 75px; height: 75px; border-radius: 50%; border: none; background: var(--accent); color: white; font-size: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s; pointer-events: auto; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .listening { background: #ff4b2b; transform: scale(1.1); box-shadow: 0 0 25px #ff4b2b; }
+    </style>
+</head>
+<body>
+
+<div id="setup" class="overlay">
+    <h1 style="letter-spacing: 4px; margin-bottom: 5px;">DIYA</h1>
+    <p style="color: #666; margin-bottom: 25px; font-size: 14px;">Token Name: <b>Diya_Tutor</b></p>
+    <input type="password" id="hfToken" placeholder="Paste Token (hf_...)">
+    <button class="btn-start" onclick="startApp()">WAKE UP</button>
+</div>
+
+<div id="canvas-container"></div>
+
+<div class="ui-panel">
+    <div id="status">IDLE</div>
+    <div id="transcript">Tap the mic to talk.</div>
+    <button class="mic-btn" id="micBtn" onclick="toggleMic()">🎤</button>
+</div>
+
+<script>
+    let token, scene, camera, renderer, avatar, recognition;
+    const synth = window.speechSynthesis;
+    let isSpeaking = false;
+
+    function init3D() {
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / (window.innerHeight * 0.55), 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight * 0.55);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        const geo = new THREE.IcosahedronGeometry(1, 6);
+        const mat = new THREE.MeshStandardMaterial({ color: 0x00d2ff, wireframe: true, transparent: true, opacity: 0.8 });
+        avatar = new THREE.Mesh(geo, mat);
+        scene.add(avatar);
+
+        scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+        camera.position.z = 2.5;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            avatar.rotation.y += 0.008;
+            if(isSpeaking) {
+                const s = 1 + Math.sin(Date.now() * 0.015) * 0.12;
+                avatar.scale.set(s,s,s);
+            }
+            renderer.render(scene, camera);
+        }
+        animate();
+    }
+
+    window.startApp = () => {
+        token = document.getElementById('hfToken').value.trim();
+        if(!token) return alert("Please enter your Hugging Face token.");
+        document.getElementById('setup').style.display = 'none';
+        init3D();
+        initMic();
+        speak("I am ready. Tap the mic and tell me how I can help.");
+    };
+
+    async function askAI(input) {
+        document.getElementById('status').innerText = "THINKING...";
+        try {
+            const res = await fetch("https://api-inference.huggingface.co/models/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+                body: JSON.stringify({ inputs: `You are Diya, a friendly girl. Answer briefly: ${input}` })
+            });
+
+            const data = await res.json();
+            
+            if (data.error && data.error.includes("loading")) {
+                document.getElementById('status').innerText = "BRAIN LOADING...";
+                setTimeout(() => askAI(input), 10000); // Retry after 10s
+                return;
+            }
+
+            let reply = data[0].generated_text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+            speak(reply);
+        } catch (e) {
+            document.getElementById('status').innerText = "BRAIN ERROR";
+            console.error(e);
+        }
+    }
+
+    function initMic() {
+        const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if(!Speech) return alert("Microphone not supported on this browser.");
+        
+        recognition = new Speech();
+        recognition.lang = 'en-US';
+        recognition.onstart = () => {
+            document.getElementById('status').innerText = "LISTENING...";
+            document.getElementById('micBtn').classList.add('listening');
+        };
+        recognition.onresult = (e) => {
+            const text = e.results[0][0].transcript;
+            document.getElementById('transcript').innerText = text;
+            askAI(text);
+        };
+        recognition.onend = () => {
+            document.getElementById('micBtn').classList.remove('listening');
+            if(!isSpeaking) document.getElementById('status').innerText = "READY";
+        };
+    }
+
+    window.toggleMic = () => {
+        try { recognition.start(); } catch(e) { recognition.stop(); }
+    };
+
+    function speak(text) {
+        isSpeaking = true;
+        recognition.stop();
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.onstart = () => {
+            document.getElementById('status').innerText = "SPEAKING...";
+            document.getElementById('transcript').innerText = text;
+        };
+        msg.onend = () => {
+            isSpeaking = false;
+            document.getElementById('status').innerText = "READY";
+        };
+        synth.speak(msg);
+    }
+
+    window.addEventListener('resize', () => {
+        renderer.setSize(window.innerWidth, window.innerHeight * 0.55);
+        camera.aspect = window.innerWidth / (window.innerHeight * 0.55);
+        camera.updateProjectionMatrix();
+    });
+</script>
+</body>
+</html>
