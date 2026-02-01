@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diya Live: AI Tutor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; background: #050505; overflow: hidden; font-family: 'Segoe UI', sans-serif; color: white; }
+        #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; }
+        
+        .ui { position: absolute; bottom: 40px; width: 100%; display: flex; flex-direction: column; align-items: center; z-index: 10; pointer-events: none; }
+        #status { font-size: 12px; color: #4facfe; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
+        #transcript { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); padding: 15px 25px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.1); max-width: 80%; text-align: center; }
+
+        .setup-screen { position: fixed; inset: 0; background: #000; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        input { padding: 12px; border-radius: 10px; border: 1px solid #333; background: #111; color: white; width: 260px; margin-bottom: 20px; text-align: center; }
+        button { pointer-events: auto; padding: 15px 45px; background: #4facfe; border: none; border-radius: 30px; color: white; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:hover { transform: scale(1.05); background: #00f2fe; }
+    </style>
+</head>
+<body>
+
+<div id="setup" class="setup-screen">
+    <h1>Diya AI</h1>
+    <p style="color: #666;">Enter your Hugging Face Token to begin</p>
+    <input type="password" id="hfToken" placeholder="hf_xxxxxxxxxxxxxxxxx">
+    <button onclick="startApp()">START SESSION</button>
+</div>
+
+<div id="canvas-container"></div>
+
+<div class="ui">
+    <div id="status">Diya is waiting</div>
+    <div id="transcript">Click Start to talk to me</div>
+</div>
+
+<script type="module">
+    import { HfInference } from "https://cdn.jsdelivr.net/npm/@huggingface/inference@2.6.4/+esm";
+
+    let scene, camera, renderer, ball, hf;
+    const synth = window.speechSynthesis;
+
+    window.startApp = () => {
+        const token = document.getElementById('hfToken').value;
+        if(!token) return alert("Token required!");
+        hf = new HfInference(token);
+        document.getElementById('setup').style.display = 'none';
+        
+        init3D();
+        initVoice();
+        speak("Hello! I am Diya. I am ready to help you practice English.");
+    };
+
+    function init3D() {
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        // Diya's "Avatar" (Professional Abstract Sphere)
+        const geometry = new THREE.IcosahedronGeometry(1, 15);
+        const material = new THREE.MeshPhongMaterial({ color: 0x4facfe, wireframe: true });
+        ball = new THREE.Mesh(geometry, material);
+        scene.add(ball);
+
+        const light = new THREE.PointLight(0xffffff, 1.5, 100);
+        light.position.set(5, 5, 5);
+        scene.add(light);
+        camera.position.z = 3;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            ball.rotation.y += 0.005;
+            ball.rotation.z += 0.002;
+            renderer.render(scene, camera);
+        }
+        animate();
+    }
+
+    function initVoice() {
+        const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const rec = new Speech();
+        rec.continuous = false;
+        rec.lang = 'en-US';
+
+        rec.onstart = () => document.getElementById('status').innerText = "Diya is listening...";
+        rec.onresult = async (event) => {
+            const text = event.results[0][0].transcript;
+            document.getElementById('transcript').innerText = text;
+            processAI(text);
+        };
+        rec.onend = () => { if(!synth.speaking) rec.start(); };
+        rec.start();
+    }
+
+    async function processAI(input) {
+        document.getElementById('status').innerText = "Diya is thinking...";
+        try {
+            const out = await hf.chatCompletion({
+                model: "mistralai/Mistral-7B-Instruct-v0.3",
+                messages: [{ role: "user", content: `You are Diya, a friendly girl. Respond briefly: ${input}` }],
+                max_tokens: 60
+            });
+            speak(out.choices[0].message.content);
+        } catch (e) {
+            document.getElementById('status').innerText = "Waking up brain...";
+            setTimeout(() => processAI(input), 2000); // Auto-retry if model is loading
+        }
+    }
+
+    function speak(text) {
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.onstart = () => {
+            document.getElementById('status').innerText = "Diya is speaking...";
+            document.getElementById('transcript').innerText = text;
+            // Lip-sync pulse
+            const pulse = setInterval(() => {
+                if(!synth.speaking) { clearInterval(pulse); ball.scale.set(1,1,1); return; }
+                const s = 1 + Math.random() * 0.1;
+                ball.scale.set(s,s,s);
+            }, 100);
+        };
+        msg.onend = () => {
+            document.getElementById('status').innerText = "Waiting for you...";
+            // Automatically restart listening after speaking
+        };
+        synth.speak(msg);
+    }
+</script>
+</body>
+</html>
