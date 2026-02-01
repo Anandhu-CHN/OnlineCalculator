@@ -3,160 +3,151 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Diya AI: Mobile Pro</title>
+    <title>Diya AI Tutor</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        :root { --accent: #4facfe; --bg: #05050a; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); color: white; font-family: sans-serif; overflow: hidden; }
+        :root { --accent: #00d2ff; --glass: rgba(255, 255, 255, 0.1); }
+        body { margin: 0; background: #05050a; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
         
-        /* 3D Viewport */
-        #canvas-container { height: 50vh; width: 100%; position: relative; }
+        /* 3D Scene - Responsive Height */
+        #canvas-container { flex: 1; width: 100%; position: relative; }
 
-        /* Mobile HUD */
-        .app-interface { height: 50vh; display: flex; flex-direction: column; align-items: center; padding: 20px; box-sizing: border-box; background: linear-gradient(to top, #000 80%, transparent); }
-        #status { font-size: 12px; color: var(--accent); letter-spacing: 2px; margin-bottom: 10px; font-weight: bold; }
-        #transcript { background: rgba(255,255,255,0.05); padding: 20px; border-radius: 20px; width: 90%; text-align: center; border: 1px solid rgba(79, 172, 254, 0.2); min-height: 50px; font-size: 16px; }
-
-        /* Diagnostic Console (For debugging on phone) */
-        #debug { position: fixed; top: 10px; left: 10px; font-size: 10px; color: #666; max-width: 150px; pointer-events: none; }
+        /* UI Panel */
+        .ui-panel { height: 45%; background: linear-gradient(to top, #000 85%, transparent); display: flex; flex-direction: column; align-items: center; padding: 20px; box-sizing: border-box; z-index: 10; }
+        #status { font-size: 10px; letter-spacing: 2px; color: var(--accent); margin-bottom: 15px; font-weight: bold; }
+        #transcript { background: var(--glass); backdrop-filter: blur(10px); padding: 20px; border-radius: 25px; border: 1px solid rgba(255,255,255,0.1); width: 90%; max-width: 500px; text-align: center; font-size: 16px; line-height: 1.4; min-height: 50px; }
 
         /* Setup Overlay */
-        .overlay { position: fixed; inset: 0; background: var(--bg); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; }
-        input { width: 100%; padding: 15px; border-radius: 10px; border: 1px solid #333; background: #111; color: var(--accent); margin-bottom: 20px; text-align: center; font-size: 16px; }
-        .start-btn { padding: 15px 50px; background: var(--accent); border: none; border-radius: 30px; color: white; font-weight: bold; font-size: 18px; box-shadow: 0 0 20px rgba(79,172,254,0.4); }
+        .overlay { position: fixed; inset: 0; background: #05050a; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; }
+        input { width: 100%; max-width: 300px; padding: 15px; border-radius: 15px; border: 1px solid #333; background: #111; color: var(--accent); margin-bottom: 20px; text-align: center; }
+        .btn-start { padding: 15px 60px; background: var(--accent); border: none; border-radius: 30px; color: white; font-weight: bold; cursor: pointer; box-shadow: 0 10px 20px rgba(0, 210, 255, 0.3); }
 
-        /* Big Mic Button for Mobile Interaction */
-        .mic-fab { margin-top: 20px; width: 60px; height: 60px; border-radius: 50%; background: var(--accent); border: none; font-size: 24px; cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; transition: 0.3s; }
-        .mic-fab.active { background: #ff4b2b; transform: scale(1.1); }
+        /* Controls */
+        .controls { position: absolute; bottom: 20px; display: flex; gap: 20px; }
+        .icon-btn { width: 60px; height: 60px; border-radius: 50%; border: none; background: var(--accent); color: white; font-size: 24px; cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.4); }
+        .mic-active { background: #ff4b2b; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 75, 43, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(255, 75, 43, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 75, 43, 0); } }
     </style>
 </head>
 <body>
 
-<div id="debug">System: Offline</div>
-
 <div id="setup" class="overlay">
-    <h2>DIYA MOBILE AI</h2>
-    <input type="password" id="hfToken" placeholder="Paste HF Token (hf_...)">
-    <button class="start-btn" onclick="boot()">WAKE UP DIYA</button>
+    <h1 style="letter-spacing:5px">DIYA AI</h1>
+    <input type="password" id="hfToken" placeholder="hf_xxxxxxxxxxxxxxxxx">
+    <button class="btn-start" onclick="startApp()">WAKE UP</button>
 </div>
 
 <div id="canvas-container"></div>
 
-<div class="app-interface">
-    <div id="status">TAP TO SPEAK</div>
-    <div id="transcript">Ready...</div>
-    <button class="mic-fab" id="micBtn" onclick="toggleMic()">🎤</button>
+<div class="ui-panel">
+    <div id="status">OFFLINE</div>
+    <div id="transcript">Tap Wake Up to start the session.</div>
+    <div class="controls">
+        <button class="icon-btn" id="micBtn" onclick="toggleMic()">🎤</button>
+    </div>
 </div>
 
-<script type="module">
-    import { HfInference } from "https://cdn.jsdelivr.net/npm/@huggingface/inference@2.6.4/+esm";
-
-    let hf, scene, camera, renderer, avatar, recognition;
+<script>
+    let token, scene, camera, renderer, model, recognition;
     const synth = window.speechSynthesis;
     let isSpeaking = false;
 
-    // 1. Diagnostics Helper
-    function log(msg) { document.getElementById('debug').innerText = "System: " + msg; console.log(msg); }
-
-    window.boot = () => {
-        const token = document.getElementById('hfToken').value.trim();
-        if(!token) return alert("Please paste your token.");
-        hf = new HfInference(token);
-        document.getElementById('setup').style.display = 'none';
-        
-        init3D();
-        initMic();
-        speak("I am awake and optimized for your phone. How can I help?");
-    };
-
-    // 2. Mobile Responsive 3D
+    // 1. Initialize 3D (Responsive)
     function init3D() {
         scene = new THREE.Scene();
-        camera = new THREE.PerspectiveCamera(75, window.innerWidth / (window.innerHeight * 0.5), 0.1, 1000);
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / (window.innerHeight * 0.55), 0.1, 1000);
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight * 0.5);
+        renderer.setSize(window.innerWidth, window.innerHeight * 0.55);
         document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-        const geo = new THREE.IcosahedronGeometry(1, 15);
-        const mat = new THREE.MeshStandardMaterial({ color: 0x4facfe, wireframe: true });
-        avatar = new THREE.Mesh(geo, mat);
-        scene.add(avatar);
+        const geo = new THREE.TorusKnotGeometry(0.8, 0.25, 100, 16);
+        const mat = new THREE.MeshStandardMaterial({ color: 0x00d2ff, wireframe: true });
+        model = new THREE.Mesh(geo, mat);
+        scene.add(model);
 
-        scene.add(new THREE.AmbientLight(0xffffff, 1.5));
-        camera.position.z = 2.5;
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(1, 1, 2);
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0x404040));
+        camera.position.z = 3;
 
         function animate() {
             requestAnimationFrame(animate);
-            avatar.rotation.y += 0.01;
+            model.rotation.y += 0.01;
             if(isSpeaking) {
-                const s = 1 + Math.sin(Date.now() * 0.02) * 0.15;
-                avatar.scale.set(s,s,s);
+                const s = 1 + Math.sin(Date.now() * 0.02) * 0.1;
+                model.scale.set(s,s,s);
             }
             renderer.render(scene, camera);
         }
         animate();
     }
 
-    // 3. Robust Mic Logic
-    function initMic() {
-        const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if(!Speech) return log("No Mic Support");
-        
-        recognition = new Speech();
-        recognition.continuous = false;
-        recognition.lang = 'en-US';
-
-        recognition.onstart = () => {
-            document.getElementById('status').innerText = "LISTENING...";
-            document.getElementById('micBtn').classList.add('active');
-            log("Mic Active");
-        };
-
-        recognition.onresult = async (e) => {
-            const text = e.results[0][0].transcript;
-            document.getElementById('transcript').innerText = text;
-            log("API Requesting...");
-            processAI(text);
-        };
-
-        recognition.onend = () => {
-            document.getElementById('micBtn').classList.remove('active');
-            if(!isSpeaking) {
-                document.getElementById('status').innerText = "IDLE";
-                log("Mic Sleeping");
-            }
-        };
-
-        recognition.start();
-    }
-
-    window.toggleMic = () => {
-        try { recognition.start(); } catch(e) { recognition.stop(); }
+    // 2. Start App
+    window.startApp = () => {
+        token = document.getElementById('hfToken').value.trim();
+        if(!token) return alert("Please enter your token.");
+        document.getElementById('setup').style.display = 'none';
+        init3D();
+        initMic();
+        speak("I am Diya. I am ready to help you learn.");
     };
 
-    // 4. Brain Logic (DeepSeek)
-    async function processAI(input) {
+    // 3. Raw Fetch Logic (No Library Needed)
+    async function askAI(userInput) {
         document.getElementById('status').innerText = "THINKING...";
         try {
-            const out = await hf.chatCompletion({
-                model: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
-                messages: [{ role: "user", content: `Be a friendly girl. Short answer: ${input}` }],
-                max_tokens: 60
+            const response = await fetch("https://api-inference.huggingface.co/models/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    inputs: `You are Diya, a cute girl tutor. Answer briefly in one sentence: ${userInput}`,
+                    parameters: { max_new_tokens: 60, return_full_text: false }
+                })
             });
-            const reply = out.choices[0].message.content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+
+            const data = await response.json();
+            // DeepSeek fix: remove thinking tags
+            let reply = (data[0].generated_text || data.generated_text).replace(/<think>[\s\S]*?<\/think>/g, '').trim();
             speak(reply);
         } catch (e) {
-            log("Error: " + e.message);
-            speak("I had a brain freeze. Try again.");
+            console.error(e);
+            document.getElementById('status').innerText = "CONNECTION ERROR";
+            speak("I am having trouble connecting to my brain.");
         }
     }
 
-    // 5. Mobile Audio Logic
+    // 4. Speech Logic
+    function initMic() {
+        const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new Speech();
+        recognition.lang = 'en-US';
+        recognition.onstart = () => {
+            document.getElementById('status').innerText = "LISTENING...";
+            document.getElementById('micBtn').classList.add('mic-active');
+        };
+        recognition.onresult = (e) => {
+            const text = e.results[0][0].transcript;
+            document.getElementById('transcript').innerText = text;
+            askAI(text);
+        };
+        recognition.onend = () => {
+            document.getElementById('micBtn').classList.remove('mic-active');
+            if(!isSpeaking) setTimeout(() => { try { recognition.start(); } catch(e) {} }, 1000);
+        };
+        recognition.start();
+    }
+
+    window.toggleMic = () => { 
+        try { recognition.start(); } catch(e) { recognition.stop(); } 
+    };
+
     function speak(text) {
         isSpeaking = true;
         recognition.stop();
-        synth.cancel();
-
         const msg = new SpeechSynthesisUtterance(text);
         msg.onstart = () => {
             document.getElementById('status').innerText = "SPEAKING...";
@@ -169,6 +160,13 @@
         };
         synth.speak(msg);
     }
+
+    // Fix for mobile window resizing
+    window.addEventListener('resize', () => {
+        renderer.setSize(window.innerWidth, window.innerHeight * 0.55);
+        camera.aspect = window.innerWidth / (window.innerHeight * 0.55);
+        camera.updateProjectionMatrix();
+    });
 </script>
 </body>
 </html>
