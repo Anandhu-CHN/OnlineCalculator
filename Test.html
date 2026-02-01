@@ -3,34 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Diya Live: Loop Fixed</title>
+    <title>Diya Live: Custom Voices</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        body { margin: 0; background: #0a0a12; overflow: hidden; font-family: 'Segoe UI', sans-serif; color: white; }
+        body { margin: 0; background: #05050a; overflow: hidden; font-family: 'Segoe UI', sans-serif; color: white; }
         #canvas-container { width: 100vw; height: 100vh; position: absolute; }
+        
+        /* UI Controls */
+        .controls { position: absolute; top: 20px; left: 20px; z-index: 100; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 15px; border: 1px solid #4facfe; display: none; }
+        select, input[type="range"] { width: 100%; margin-top: 5px; margin-bottom: 10px; background: #222; color: white; border: 1px solid #444; border-radius: 5px; padding: 5px; }
+        label { font-size: 12px; color: #4facfe; text-transform: uppercase; }
+
         .ui { position: absolute; bottom: 40px; width: 100%; display: flex; flex-direction: column; align-items: center; z-index: 10; pointer-events: none; }
         #status { font-size: 14px; color: #4facfe; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; font-weight: bold; }
-        #transcript { background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); padding: 15px 25px; border-radius: 30px; border: 1px solid #4facfe; max-width: 80%; text-align: center; min-height: 1.4em; }
-        .setup { position: fixed; inset: 0; background: #0a0a12; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-        input { padding: 15px; border-radius: 10px; border: 1px solid #333; background: #1a1a2e; color: white; width: 280px; margin-bottom: 20px; font-size: 16px; text-align: center;}
-        .btn { pointer-events: auto; padding: 15px 50px; background: #4facfe; border: none; border-radius: 30px; color: white; font-weight: bold; cursor: pointer; font-size: 18px; }
-        #mic-indicator { position: absolute; top: 20px; right: 20px; width: 15px; height: 15px; border-radius: 50%; background: grey; }
+        #transcript { background: rgba(0,0,0,0.85); backdrop-filter: blur(15px); padding: 18px 30px; border-radius: 35px; border: 1px solid rgba(79, 172, 254, 0.3); max-width: 80%; text-align: center; }
+
+        .setup { position: fixed; inset: 0; background: #05050a; z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .btn { pointer-events: auto; padding: 16px 60px; background: #4facfe; border: none; border-radius: 35px; color: white; font-weight: bold; cursor: pointer; font-size: 18px; }
     </style>
 </head>
 <body>
 
 <div id="setup" class="setup">
     <h1>Diya AI</h1>
-    <input type="password" id="hfToken" placeholder="hf_xxxxxxxxxxxxxxxxx">
-    <button class="btn" onclick="startApp()">WAKE UP DIYA</button>
+    <input type="password" id="hfToken" placeholder="Enter HF Token" style="padding:15px; border-radius:10px; margin-bottom:20px; width:280px; text-align:center;">
+    <button class="btn" onclick="startApp()">START SESSION</button>
 </div>
 
-<div id="mic-indicator"></div>
+<div class="controls" id="voiceControls">
+    <label>Pick Accent/Voice</label>
+    <select id="voiceSelect"></select>
+    
+    <label>Talking Speed</label>
+    <input type="range" id="rate" min="0.5" max="2" value="1" step="0.1">
+</div>
+
 <div id="canvas-container"></div>
 
 <div class="ui">
-    <div id="status">Ready</div>
-    <div id="transcript">Click Wake Up to begin</div>
+    <div id="status">OFFLINE</div>
+    <div id="transcript">Ready to start...</div>
 </div>
 
 <script type="module">
@@ -38,17 +50,44 @@
 
     let scene, camera, renderer, avatar, hf, recognition;
     const synth = window.speechSynthesis;
+    let voices = [];
     let isSpeaking = false;
+
+    // Load available voices
+    function populateVoices() {
+        voices = synth.getVoices();
+        const select = document.getElementById('voiceSelect');
+        select.innerHTML = '';
+        
+        // Filter for English voices primarily, but show all
+        voices.forEach((voice, i) => {
+            const option = document.createElement('option');
+            option.value = i;
+            option.textContent = `${voice.name} (${voice.lang})`;
+            // Try to default to a natural sounding female voice if available
+            if(voice.name.includes("Google US English") || voice.name.includes("Samantha")) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+        });
+    }
+
+    // Required because getVoices() loads asynchronously
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = populateVoices;
+    }
 
     window.startApp = () => {
         const token = document.getElementById('hfToken').value.trim();
-        if(!token) return alert("Please enter your Token.");
+        if(!token) return alert("Token required!");
         hf = new HfInference(token);
         document.getElementById('setup').style.display = 'none';
+        document.getElementById('voiceControls').style.display = 'block';
         
         init3D();
         initVoice();
-        speak("Hello! I am back. I will keep listening now. How are you?");
+        populateVoices(); 
+        speak("Voice systems initialized. You can change my accent in the top left menu.");
     };
 
     function init3D() {
@@ -58,7 +97,7 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-        const geometry = new THREE.TorusKnotGeometry(0.7, 0.2, 100, 16);
+        const geometry = new THREE.IcosahedronGeometry(1, 4);
         const material = new THREE.MeshStandardMaterial({ color: 0x4facfe, wireframe: true });
         avatar = new THREE.Mesh(geometry, material);
         scene.add(avatar);
@@ -70,7 +109,7 @@
             requestAnimationFrame(animate);
             avatar.rotation.y += 0.01;
             if(isSpeaking) {
-                const s = 1 + Math.sin(Date.now() * 0.01) * 0.1;
+                const s = 1 + Math.sin(Date.now() * 0.02) * 0.2;
                 avatar.scale.set(s,s,s);
             }
             renderer.render(scene, camera);
@@ -81,29 +120,16 @@
     function initVoice() {
         const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
         recognition = new Speech();
-        recognition.continuous = false; // We handle continuity manually for better stability
-        recognition.interimResults = false;
+        recognition.continuous = false;
         recognition.lang = 'en-US';
 
-        recognition.onstart = () => {
-            document.getElementById('status').innerText = "Diya is listening...";
-            document.getElementById('mic-indicator').style.background = "#4facfe";
-        };
-
-        recognition.onresult = async (event) => {
-            const text = event.results[0][0].transcript;
+        recognition.onstart = () => document.getElementById('status').innerText = "Listening...";
+        recognition.onresult = async (e) => {
+            const text = e.results[0][0].transcript;
             document.getElementById('transcript').innerText = `You: ${text}`;
             processAI(text);
         };
-
-        recognition.onend = () => {
-            // ONLY restart if Diya is not talking. 
-            // If she is talking, the 'speak' function will restart the mic when she finishes.
-            if (!isSpeaking) {
-                recognition.start();
-            }
-        };
-
+        recognition.onend = () => { if(!isSpeaking) recognition.start(); };
         recognition.start();
     }
 
@@ -112,34 +138,38 @@
         try {
             const out = await hf.chatCompletion({
                 model: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
-                messages: [{ role: "user", content: `You are Diya, a friendly girl. Reply in 1 short sentence: ${input}` }],
+                messages: [{ role: "user", content: `You are Diya. Reply briefly: ${input}` }],
                 max_tokens: 100
             });
-            const reply = out.choices[0].message.content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+            let reply = out.choices[0].message.content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
             speak(reply);
         } catch (e) {
-            console.error(e);
-            speak("I had a small glitch. Can you say that again?");
+            speak("Brain connection reset. Try again.");
         }
     }
 
     function speak(text) {
         isSpeaking = true;
-        recognition.stop(); // Stop listening while she talks to prevent feedback loop
-
+        recognition.stop();
+        
         const msg = new SpeechSynthesisUtterance(text);
+        
+        // Apply custom voice and speed
+        const selectedVoiceIndex = document.getElementById('voiceSelect').value;
+        if(voices[selectedVoiceIndex]) {
+            msg.voice = voices[selectedVoiceIndex];
+        }
+        msg.rate = document.getElementById('rate').value;
+
         msg.onstart = () => {
-            document.getElementById('status').innerText = "Diya is speaking...";
+            document.getElementById('status').innerText = "Speaking...";
             document.getElementById('transcript').innerText = `Diya: ${text}`;
         };
-
         msg.onend = () => {
             isSpeaking = false;
             document.getElementById('status').innerText = "Waiting...";
-            // IMPORTANT: Restart the "ears" after she is done talking
-            setTimeout(() => { recognition.start(); }, 500); 
+            setTimeout(() => recognition.start(), 400);
         };
-
         synth.speak(msg);
     }
 </script>
