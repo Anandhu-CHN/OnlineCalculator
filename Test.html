@@ -2,114 +2,94 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Diya Live: Custom Voices</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Diya AI: Mobile Pro</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        body { margin: 0; background: #05050a; overflow: hidden; font-family: 'Segoe UI', sans-serif; color: white; }
-        #canvas-container { width: 100vw; height: 100vh; position: absolute; }
+        :root { --accent: #4facfe; --bg: #05050a; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); color: white; font-family: sans-serif; overflow: hidden; }
         
-        /* UI Controls */
-        .controls { position: absolute; top: 20px; left: 20px; z-index: 100; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 15px; border: 1px solid #4facfe; display: none; }
-        select, input[type="range"] { width: 100%; margin-top: 5px; margin-bottom: 10px; background: #222; color: white; border: 1px solid #444; border-radius: 5px; padding: 5px; }
-        label { font-size: 12px; color: #4facfe; text-transform: uppercase; }
+        /* 3D Viewport */
+        #canvas-container { height: 50vh; width: 100%; position: relative; }
 
-        .ui { position: absolute; bottom: 40px; width: 100%; display: flex; flex-direction: column; align-items: center; z-index: 10; pointer-events: none; }
-        #status { font-size: 14px; color: #4facfe; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; font-weight: bold; }
-        #transcript { background: rgba(0,0,0,0.85); backdrop-filter: blur(15px); padding: 18px 30px; border-radius: 35px; border: 1px solid rgba(79, 172, 254, 0.3); max-width: 80%; text-align: center; }
+        /* Mobile HUD */
+        .app-interface { height: 50vh; display: flex; flex-direction: column; align-items: center; padding: 20px; box-sizing: border-box; background: linear-gradient(to top, #000 80%, transparent); }
+        #status { font-size: 12px; color: var(--accent); letter-spacing: 2px; margin-bottom: 10px; font-weight: bold; }
+        #transcript { background: rgba(255,255,255,0.05); padding: 20px; border-radius: 20px; width: 90%; text-align: center; border: 1px solid rgba(79, 172, 254, 0.2); min-height: 50px; font-size: 16px; }
 
-        .setup { position: fixed; inset: 0; background: #05050a; z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .btn { pointer-events: auto; padding: 16px 60px; background: #4facfe; border: none; border-radius: 35px; color: white; font-weight: bold; cursor: pointer; font-size: 18px; }
+        /* Diagnostic Console (For debugging on phone) */
+        #debug { position: fixed; top: 10px; left: 10px; font-size: 10px; color: #666; max-width: 150px; pointer-events: none; }
+
+        /* Setup Overlay */
+        .overlay { position: fixed; inset: 0; background: var(--bg); z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; }
+        input { width: 100%; padding: 15px; border-radius: 10px; border: 1px solid #333; background: #111; color: var(--accent); margin-bottom: 20px; text-align: center; font-size: 16px; }
+        .start-btn { padding: 15px 50px; background: var(--accent); border: none; border-radius: 30px; color: white; font-weight: bold; font-size: 18px; box-shadow: 0 0 20px rgba(79,172,254,0.4); }
+
+        /* Big Mic Button for Mobile Interaction */
+        .mic-fab { margin-top: 20px; width: 60px; height: 60px; border-radius: 50%; background: var(--accent); border: none; font-size: 24px; cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; transition: 0.3s; }
+        .mic-fab.active { background: #ff4b2b; transform: scale(1.1); }
     </style>
 </head>
 <body>
 
-<div id="setup" class="setup">
-    <h1>Diya AI</h1>
-    <input type="password" id="hfToken" placeholder="Enter HF Token" style="padding:15px; border-radius:10px; margin-bottom:20px; width:280px; text-align:center;">
-    <button class="btn" onclick="startApp()">START SESSION</button>
-</div>
+<div id="debug">System: Offline</div>
 
-<div class="controls" id="voiceControls">
-    <label>Pick Accent/Voice</label>
-    <select id="voiceSelect"></select>
-    
-    <label>Talking Speed</label>
-    <input type="range" id="rate" min="0.5" max="2" value="1" step="0.1">
+<div id="setup" class="overlay">
+    <h2>DIYA MOBILE AI</h2>
+    <input type="password" id="hfToken" placeholder="Paste HF Token (hf_...)">
+    <button class="start-btn" onclick="boot()">WAKE UP DIYA</button>
 </div>
 
 <div id="canvas-container"></div>
 
-<div class="ui">
-    <div id="status">OFFLINE</div>
-    <div id="transcript">Ready to start...</div>
+<div class="app-interface">
+    <div id="status">TAP TO SPEAK</div>
+    <div id="transcript">Ready...</div>
+    <button class="mic-fab" id="micBtn" onclick="toggleMic()">🎤</button>
 </div>
 
 <script type="module">
     import { HfInference } from "https://cdn.jsdelivr.net/npm/@huggingface/inference@2.6.4/+esm";
 
-    let scene, camera, renderer, avatar, hf, recognition;
+    let hf, scene, camera, renderer, avatar, recognition;
     const synth = window.speechSynthesis;
-    let voices = [];
     let isSpeaking = false;
 
-    // Load available voices
-    function populateVoices() {
-        voices = synth.getVoices();
-        const select = document.getElementById('voiceSelect');
-        select.innerHTML = '';
-        
-        // Filter for English voices primarily, but show all
-        voices.forEach((voice, i) => {
-            const option = document.createElement('option');
-            option.value = i;
-            option.textContent = `${voice.name} (${voice.lang})`;
-            // Try to default to a natural sounding female voice if available
-            if(voice.name.includes("Google US English") || voice.name.includes("Samantha")) {
-                option.selected = true;
-            }
-            select.appendChild(option);
-        });
-    }
+    // 1. Diagnostics Helper
+    function log(msg) { document.getElementById('debug').innerText = "System: " + msg; console.log(msg); }
 
-    // Required because getVoices() loads asynchronously
-    if (speechSynthesis.onvoiceschanged !== undefined) {
-        speechSynthesis.onvoiceschanged = populateVoices;
-    }
-
-    window.startApp = () => {
+    window.boot = () => {
         const token = document.getElementById('hfToken').value.trim();
-        if(!token) return alert("Token required!");
+        if(!token) return alert("Please paste your token.");
         hf = new HfInference(token);
         document.getElementById('setup').style.display = 'none';
-        document.getElementById('voiceControls').style.display = 'block';
         
         init3D();
-        initVoice();
-        populateVoices(); 
-        speak("Voice systems initialized. You can change my accent in the top left menu.");
+        initMic();
+        speak("I am awake and optimized for your phone. How can I help?");
     };
 
+    // 2. Mobile Responsive 3D
     function init3D() {
         scene = new THREE.Scene();
-        camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / (window.innerHeight * 0.5), 0.1, 1000);
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setSize(window.innerWidth, window.innerHeight * 0.5);
         document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-        const geometry = new THREE.IcosahedronGeometry(1, 4);
-        const material = new THREE.MeshStandardMaterial({ color: 0x4facfe, wireframe: true });
-        avatar = new THREE.Mesh(geometry, material);
+        const geo = new THREE.IcosahedronGeometry(1, 15);
+        const mat = new THREE.MeshStandardMaterial({ color: 0x4facfe, wireframe: true });
+        avatar = new THREE.Mesh(geo, mat);
         scene.add(avatar);
 
-        scene.add(new THREE.AmbientLight(0xffffff, 1));
-        camera.position.z = 3;
+        scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+        camera.position.z = 2.5;
 
         function animate() {
             requestAnimationFrame(animate);
             avatar.rotation.y += 0.01;
             if(isSpeaking) {
-                const s = 1 + Math.sin(Date.now() * 0.02) * 0.2;
+                const s = 1 + Math.sin(Date.now() * 0.02) * 0.15;
                 avatar.scale.set(s,s,s);
             }
             renderer.render(scene, camera);
@@ -117,58 +97,75 @@
         animate();
     }
 
-    function initVoice() {
+    // 3. Robust Mic Logic
+    function initMic() {
         const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if(!Speech) return log("No Mic Support");
+        
         recognition = new Speech();
         recognition.continuous = false;
         recognition.lang = 'en-US';
 
-        recognition.onstart = () => document.getElementById('status').innerText = "Listening...";
+        recognition.onstart = () => {
+            document.getElementById('status').innerText = "LISTENING...";
+            document.getElementById('micBtn').classList.add('active');
+            log("Mic Active");
+        };
+
         recognition.onresult = async (e) => {
             const text = e.results[0][0].transcript;
-            document.getElementById('transcript').innerText = `You: ${text}`;
+            document.getElementById('transcript').innerText = text;
+            log("API Requesting...");
             processAI(text);
         };
-        recognition.onend = () => { if(!isSpeaking) recognition.start(); };
+
+        recognition.onend = () => {
+            document.getElementById('micBtn').classList.remove('active');
+            if(!isSpeaking) {
+                document.getElementById('status').innerText = "IDLE";
+                log("Mic Sleeping");
+            }
+        };
+
         recognition.start();
     }
 
+    window.toggleMic = () => {
+        try { recognition.start(); } catch(e) { recognition.stop(); }
+    };
+
+    // 4. Brain Logic (DeepSeek)
     async function processAI(input) {
-        document.getElementById('status').innerText = "Thinking...";
+        document.getElementById('status').innerText = "THINKING...";
         try {
             const out = await hf.chatCompletion({
                 model: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
-                messages: [{ role: "user", content: `You are Diya. Reply briefly: ${input}` }],
-                max_tokens: 100
+                messages: [{ role: "user", content: `Be a friendly girl. Short answer: ${input}` }],
+                max_tokens: 60
             });
-            let reply = out.choices[0].message.content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+            const reply = out.choices[0].message.content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
             speak(reply);
         } catch (e) {
-            speak("Brain connection reset. Try again.");
+            log("Error: " + e.message);
+            speak("I had a brain freeze. Try again.");
         }
     }
 
+    // 5. Mobile Audio Logic
     function speak(text) {
         isSpeaking = true;
         recognition.stop();
-        
-        const msg = new SpeechSynthesisUtterance(text);
-        
-        // Apply custom voice and speed
-        const selectedVoiceIndex = document.getElementById('voiceSelect').value;
-        if(voices[selectedVoiceIndex]) {
-            msg.voice = voices[selectedVoiceIndex];
-        }
-        msg.rate = document.getElementById('rate').value;
+        synth.cancel();
 
+        const msg = new SpeechSynthesisUtterance(text);
         msg.onstart = () => {
-            document.getElementById('status').innerText = "Speaking...";
-            document.getElementById('transcript').innerText = `Diya: ${text}`;
+            document.getElementById('status').innerText = "SPEAKING...";
+            document.getElementById('transcript').innerText = text;
         };
         msg.onend = () => {
             isSpeaking = false;
-            document.getElementById('status').innerText = "Waiting...";
-            setTimeout(() => recognition.start(), 400);
+            document.getElementById('status').innerText = "WAITING...";
+            setTimeout(() => { try { recognition.start(); } catch(e) {} }, 500);
         };
         synth.speak(msg);
     }
