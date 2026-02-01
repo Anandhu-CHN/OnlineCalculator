@@ -3,36 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Diya Live: Stable Build</title>
+    <title>Diya Live: Loop Fixed</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         body { margin: 0; background: #0a0a12; overflow: hidden; font-family: 'Segoe UI', sans-serif; color: white; }
         #canvas-container { width: 100vw; height: 100vh; position: absolute; }
         .ui { position: absolute; bottom: 40px; width: 100%; display: flex; flex-direction: column; align-items: center; z-index: 10; pointer-events: none; }
         #status { font-size: 14px; color: #4facfe; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; font-weight: bold; }
-        #transcript { background: rgba(0,0,0,0.7); backdrop-filter: blur(10px); padding: 15px 25px; border-radius: 30px; border: 1px solid #4facfe; max-width: 80%; text-align: center; line-height: 1.4; }
-        .setup { position: fixed; inset: 0; background: #0a0a12; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; }
-        input { padding: 15px; border-radius: 10px; border: 1px solid #333; background: #1a1a2e; color: white; width: 280px; margin-bottom: 20px; font-size: 16px; }
-        .btn { pointer-events: auto; padding: 15px 50px; background: #4facfe; border: none; border-radius: 30px; color: white; font-weight: bold; cursor: pointer; font-size: 18px; box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4); }
-        #mic-btn { position: absolute; top: 20px; right: 20px; padding: 10px; border-radius: 50%; background: #ff4b2b; border: none; cursor: pointer; pointer-events: auto; width: 50px; height: 50px; display: none; }
+        #transcript { background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); padding: 15px 25px; border-radius: 30px; border: 1px solid #4facfe; max-width: 80%; text-align: center; min-height: 1.4em; }
+        .setup { position: fixed; inset: 0; background: #0a0a12; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        input { padding: 15px; border-radius: 10px; border: 1px solid #333; background: #1a1a2e; color: white; width: 280px; margin-bottom: 20px; font-size: 16px; text-align: center;}
+        .btn { pointer-events: auto; padding: 15px 50px; background: #4facfe; border: none; border-radius: 30px; color: white; font-weight: bold; cursor: pointer; font-size: 18px; }
+        #mic-indicator { position: absolute; top: 20px; right: 20px; width: 15px; height: 15px; border-radius: 50%; background: grey; }
     </style>
 </head>
 <body>
 
 <div id="setup" class="setup">
-    <h1 style="margin-bottom: 10px;">Diya AI Tutor</h1>
-    <p style="color: #888; margin-bottom: 30px;">Stable Build: Uses DeepSeek R1 (No Gating Required)</p>
-    <input type="password" id="hfToken" placeholder="Paste hf_xxxxxxxxxxxxxxxxx">
-    <button class="btn" onclick="startApp()">START SESSION</button>
-    <p style="font-size: 12px; color: #555; margin-top: 20px;">Ensure you are using HTTPS or Localhost for Mic access.</p>
+    <h1>Diya AI</h1>
+    <input type="password" id="hfToken" placeholder="hf_xxxxxxxxxxxxxxxxx">
+    <button class="btn" onclick="startApp()">WAKE UP DIYA</button>
 </div>
 
-<button id="mic-btn" onclick="toggleMic()">🎤</button>
+<div id="mic-indicator"></div>
 <div id="canvas-container"></div>
 
 <div class="ui">
-    <div id="status">Diya is waiting</div>
-    <div id="transcript">Please click Start</div>
+    <div id="status">Ready</div>
+    <div id="transcript">Click Wake Up to begin</div>
 </div>
 
 <script type="module">
@@ -40,17 +38,17 @@
 
     let scene, camera, renderer, avatar, hf, recognition;
     const synth = window.speechSynthesis;
+    let isSpeaking = false;
 
     window.startApp = () => {
         const token = document.getElementById('hfToken').value.trim();
-        if(!token) return alert("Please enter your Hugging Face Token.");
+        if(!token) return alert("Please enter your Token.");
         hf = new HfInference(token);
         document.getElementById('setup').style.display = 'none';
-        document.getElementById('mic-btn').style.display = 'block';
         
         init3D();
         initVoice();
-        speak("Hello! I am Diya. I am ready to talk. If I stop listening, click the microphone button.");
+        speak("Hello! I am back. I will keep listening now. How are you?");
     };
 
     function init3D() {
@@ -60,21 +58,21 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-        const geometry = new THREE.TorusKnotGeometry(0.7, 0.2, 128, 32);
-        const material = new THREE.MeshStandardMaterial({ color: 0x4facfe, emissive: 0x111111, roughness: 0.1, metalness: 0.8 });
+        const geometry = new THREE.TorusKnotGeometry(0.7, 0.2, 100, 16);
+        const material = new THREE.MeshStandardMaterial({ color: 0x4facfe, wireframe: true });
         avatar = new THREE.Mesh(geometry, material);
         scene.add(avatar);
 
-        scene.add(new THREE.AmbientLight(0x404040, 2));
-        const pointLight = new THREE.PointLight(0xffffff, 1);
-        pointLight.position.set(5, 5, 5);
-        scene.add(pointLight);
+        scene.add(new THREE.AmbientLight(0xffffff, 1));
         camera.position.z = 3;
 
         function animate() {
             requestAnimationFrame(animate);
             avatar.rotation.y += 0.01;
-            avatar.rotation.x += 0.005;
+            if(isSpeaking) {
+                const s = 1 + Math.sin(Date.now() * 0.01) * 0.1;
+                avatar.scale.set(s,s,s);
+            }
             renderer.render(scene, camera);
         }
         animate();
@@ -82,68 +80,66 @@
 
     function initVoice() {
         const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if(!Speech) return alert("Speech Recognition not supported in this browser. Please use Chrome.");
-        
         recognition = new Speech();
-        recognition.continuous = false;
+        recognition.continuous = false; // We handle continuity manually for better stability
+        recognition.interimResults = false;
         recognition.lang = 'en-US';
 
         recognition.onstart = () => {
             document.getElementById('status').innerText = "Diya is listening...";
-            document.getElementById('mic-btn').style.background = "#4facfe";
+            document.getElementById('mic-indicator').style.background = "#4facfe";
         };
-        
+
         recognition.onresult = async (event) => {
             const text = event.results[0][0].transcript;
             document.getElementById('transcript').innerText = `You: ${text}`;
             processAI(text);
         };
 
-        recognition.onerror = (err) => {
-            console.error("Mic Error:", err.error);
-            document.getElementById('status').innerText = `Mic Error: ${err.error}`;
-            document.getElementById('mic-btn').style.background = "#ff4b2b";
-        };
-
         recognition.onend = () => {
-            if(!synth.speaking) recognition.start();
+            // ONLY restart if Diya is not talking. 
+            // If she is talking, the 'speak' function will restart the mic when she finishes.
+            if (!isSpeaking) {
+                recognition.start();
+            }
         };
-        
-        recognition.start();
-    }
 
-    window.toggleMic = () => {
-        try { recognition.start(); } catch(e) { recognition.stop(); }
+        recognition.start();
     }
 
     async function processAI(input) {
         document.getElementById('status').innerText = "Thinking...";
         try {
             const out = await hf.chatCompletion({
-                model: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B", // Non-gated, fast, powerful
-                messages: [{ role: "user", content: `You are Diya, a friendly girl tutor. Keep your answer under 2 sentences: ${input}` }],
+                model: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
+                messages: [{ role: "user", content: `You are Diya, a friendly girl. Reply in 1 short sentence: ${input}` }],
                 max_tokens: 100
             });
             const reply = out.choices[0].message.content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
             speak(reply);
         } catch (e) {
             console.error(e);
-            document.getElementById('status').innerText = "Brain waking up... wait 5s";
-            setTimeout(() => processAI(input), 5000);
+            speak("I had a small glitch. Can you say that again?");
         }
     }
 
     function speak(text) {
-        synth.cancel(); // Stop any existing speech
+        isSpeaking = true;
+        recognition.stop(); // Stop listening while she talks to prevent feedback loop
+
         const msg = new SpeechSynthesisUtterance(text);
         msg.onstart = () => {
             document.getElementById('status').innerText = "Diya is speaking...";
             document.getElementById('transcript').innerText = `Diya: ${text}`;
         };
+
         msg.onend = () => {
-            document.getElementById('status').innerText = "Waiting for you...";
-            recognition.start();
+            isSpeaking = false;
+            document.getElementById('status').innerText = "Waiting...";
+            // IMPORTANT: Restart the "ears" after she is done talking
+            setTimeout(() => { recognition.start(); }, 500); 
         };
+
         synth.speak(msg);
     }
 </script>
