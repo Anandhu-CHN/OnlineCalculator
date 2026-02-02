@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Diya AI Tutor</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
@@ -16,141 +16,170 @@
             background: #000; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
 
-        /* Gemini Background Mesh */
-        #bg-canvas { position: absolute; top: 0; left: 0; z-index: 1; filter: blur(60px); opacity: 0.5; }
+        #bg-canvas { position: absolute; top: 0; left: 0; z-index: 1; filter: blur(80px); opacity: 0.6; }
 
-        .main-shell {
-            position: relative; z-index: 10; width: 100%; height: 100vh;
-            display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-            padding-bottom: env(safe-area-inset-bottom, 40px);
+        /* Navigation Icons */
+        .top-nav { position: absolute; top: 20px; right: 20px; z-index: 100; display: flex; gap: 12px; }
+        .nav-btn {
+            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1);
+            width: 44px; height: 44px; border-radius: 50%; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; backdrop-filter: blur(20px);
+        }
+        .nav-btn svg { width: 20px; height: 20px; fill: #fff; }
+
+        /* Panels */
+        .panel {
+            position: absolute; top: 80px; right: 20px; z-index: 101;
+            background: rgba(15, 15, 15, 0.9); backdrop-filter: blur(30px);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 24px;
+            padding: 20px; width: 280px; display: none; color: white;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6); max-height: 60vh; overflow-y: auto;
         }
 
-        /* Glassmorphism Chat Bubble */
-        .chat-bubble {
-            width: 90%; max-width: 450px; margin-bottom: 30px;
-            background: rgba(255, 255, 255, 0.06);
-            backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
-            border-radius: 28px; border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 24px; box-sizing: border-box;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+        .history-item {
+            background: rgba(255,255,255,0.04); padding: 14px; border-radius: 16px;
+            margin-bottom: 12px; font-size: 13px; border-left: 4px solid var(--g-blue);
+            position: relative;
         }
-
-        #status-indicator { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #9aa0a6; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
-        #status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--g-blue); transition: 0.3s; }
+        .del-one { position: absolute; top: 8px; right: 10px; opacity: 0.4; cursor: pointer; }
         
-        #transcript { 
-            color: #fff; font-size: 17px; line-height: 1.5; text-align: left;
-            min-height: 50px; margin-top: 15px; font-weight: 400;
+        .voice-option {
+            padding: 14px; margin: 8px 0; border-radius: 14px; cursor: pointer;
+            display: flex; justify-content: space-between; align-items: center;
+            border: 1px solid rgba(255,255,255,0.05); transition: 0.2s;
+        }
+        .voice-option.active { border-color: var(--g-blue); background: rgba(66, 133, 244, 0.15); }
+        .voice-option:hover { background: rgba(255,255,255,0.1); }
+
+        /* Main Interaction Area */
+        .main-shell {
+            position: relative; z-index: 10; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; padding: 20px; box-sizing: border-box;
         }
 
-        /* Voice Button */
+        @media (max-width: 768px) {
+            .main-shell { justify-content: flex-end; padding-bottom: calc(40px + env(safe-area-inset-bottom)); }
+        }
+
+        .chat-bubble {
+            width: 100%; max-width: 480px; margin-bottom: 40px;
+            background: rgba(255, 255, 255, 0.04); backdrop-filter: blur(40px);
+            border-radius: 32px; border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 28px; box-sizing: border-box; box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        #status-indicator { display: flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 700; color: #888; text-transform: uppercase; }
+        #status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--g-blue); }
+        #transcript { color: #fff; font-size: 18px; margin-top: 18px; min-height: 40px; line-height: 1.5; font-weight: 300; }
+
+        /* Mic Button Position */
+        .mic-wrap { display: flex; flex-direction: column; align-items: center; }
+        
         .mic-btn {
-            width: 72px; height: 72px; border-radius: 50%;
-            background: #fff; border: none; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 0 20px rgba(255,255,255,0.1);
-            transition: transform 0.2s cubic-bezier(0.2, 0, 0.2, 1);
+            width: 80px; height: 80px; border-radius: 50%; background: #fff; border: none; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3); transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        .mic-btn:active { transform: scale(0.9); }
-        .mic-btn svg { width: 30px; height: 30px; fill: #1f1f1f; }
+        .mic-btn svg { width: 32px; height: 32px; fill: #111; }
+        .pulse { background: var(--g-red) !important; transform: scale(1.1); box-shadow: 0 0 40px rgba(234, 67, 53, 0.4); }
+        .pulse svg { fill: #fff !important; }
 
-        .pulse { animation: pulse-ring 1.5s infinite; }
-        @keyframes pulse-ring {
-            0% { box-shadow: 0 0 0 0 rgba(66, 133, 244, 0.5); }
-            70% { box-shadow: 0 0 0 20px rgba(66, 133, 244, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(66, 133, 244, 0); }
-        }
-
-        /* Overlay for Token Entry */
-        .login-overlay {
-            position: fixed; inset: 0; z-index: 100; background: #000;
-            display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px;
-        }
-        input {
-            background: #1a1a1a; border: 1px solid #333; color: #fff;
-            padding: 16px; border-radius: 12px; width: 100%; max-width: 300px;
-            font-size: 16px; margin-bottom: 20px; text-align: center; outline: none;
-        }
-        .start-btn {
-            background: #fff; color: #000; border: none; padding: 14px 40px;
-            border-radius: 30px; font-weight: 700; cursor: pointer; font-size: 16px;
-        }
+        /* Login Overlay */
+        .login-overlay { position: fixed; inset: 0; z-index: 1000; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        input { background: #111; border: 1px solid #333; color: #fff; padding: 18px; border-radius: 16px; width: 280px; margin-bottom: 20px; text-align: center; }
+        .start-btn { background: #fff; color: #000; border: none; padding: 16px 50px; border-radius: 40px; font-weight: 700; cursor: pointer; }
     </style>
 </head>
-<body>
+<body id="app-body">
 
 <canvas id="bg-canvas"></canvas>
 
+<div class="top-nav">
+    <div class="nav-btn" onclick="togglePanel('history-panel')" title="History">
+        <svg viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+    </div>
+    <div class="nav-btn" onclick="togglePanel('voice-menu')" title="Voices">
+        <svg viewBox="0 0 24 24"><path d="M5 16L3 5L8.5 10L12 4L15.5 10L21 5L19 16H5M19 19C19 19.6 18.6 20 18 20H6C5.4 20 5 19.6 5 19V18H19V19Z" fill="#fbbc05"/></svg>
+    </div>
+</div>
+
+<div id="voice-menu" class="panel">
+    <div style="font-size: 11px; opacity: 0.5; letter-spacing: 1.5px; margin-bottom: 15px; font-weight: 700;">SELECT VOICE PROFILE</div>
+    <div id="voice-list"></div>
+</div>
+
+<div id="history-panel" class="panel">
+    <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
+        <span style="font-size:11px; font-weight:700; opacity:0.6; letter-spacing: 1.5px;">HISTORY</span>
+        <span onclick="clearHistory()" style="color:var(--g-red); font-size:10px; cursor:pointer; font-weight: 700;">CLEAR ALL</span>
+    </div>
+    <div id="history-list"></div>
+</div>
+
 <div id="login" class="login-overlay">
-    <h1 style="color:#fff; font-weight: 300; margin-bottom: 30px;">Diya <span style="color:var(--g-blue)">Tutor</span></h1>
-    <input type="password" id="hfToken" placeholder="Paste Hugging Face Token">
-    <button class="start-btn" onclick="initApp()">Get Started</button>
+    <h1 style="color:#fff; font-weight:200; letter-spacing:2px; margin-bottom:30px;">DIYA <span style="color:var(--g-blue)">TUTOR</span></h1>
+    <input type="password" id="hfToken" placeholder="Hugging Face API Token">
+    <button class="start-btn" onclick="initApp()">START LESSON</button>
 </div>
 
 <div class="main-shell">
     <div class="chat-bubble">
-        <div id="status-indicator">
-            <div id="status-dot"></div>
-            <span id="status-text">Connected</span>
-        </div>
-        <div id="transcript">Tap the mic to start your lesson.</div>
+        <div id="status-indicator"><div id="status-dot"></div><span id="status-text">Ready</span></div>
+        <div id="transcript">Tap the mic to start speaking...</div>
     </div>
-
-    <button class="mic-btn" id="micBtn" onclick="toggleMic()">
-        <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
-    </button>
-    <div style="height: 30px;"></div>
-    <br> 
-    <br>
-    <br>
+    
+    <div class="mic-wrap">
+        <button class="mic-btn" id="micBtn" onclick="toggleMic()">
+            <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+        </button>
+    </div>
 </div>
 
 <script>
-    let token, scene, camera, renderer, recognition;
+    let token, scene, camera, renderer, recognition, selectedVoice;
     const synth = window.speechSynthesis;
-    let isSpeaking = false;
-    let blobs = [];
+    let isListening = false, isSpeaking = false, blobs = [], historyData = JSON.parse(localStorage.getItem('diya_history') || '[]');
 
-    // Background Animation
     function initBackground() {
         scene = new THREE.Scene();
         camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
         renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('bg-canvas'), antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-
         const colors = [0x4285f4, 0xea4335, 0xfbbc05, 0x34a853];
-        for(let i=0; i<4; i++) {
-            const mesh = new THREE.Mesh(
-                new THREE.SphereGeometry(2, 32, 32),
-                new THREE.MeshBasicMaterial({ color: colors[i] })
-            );
-            mesh.position.set(Math.random()*4-2, Math.random()*4-2, -5);
+        colors.forEach(col => {
+            const mesh = new THREE.Mesh(new THREE.SphereGeometry(3, 64, 64), new THREE.MeshBasicMaterial({ color: col }));
+            mesh.position.set((Math.random()-0.5)*12, (Math.random()-0.5)*12, -10);
             scene.add(mesh);
-            blobs.push({ mesh, vel: new THREE.Vector3(Math.random()*0.005, Math.random()*0.005, 0) });
-        }
-
-        function animate() {
+            blobs.push({ mesh, offset: Math.random() * Math.PI, speed: 0.003 + Math.random()*0.005 });
+        });
+        function animate(t) {
             requestAnimationFrame(animate);
-            blobs.forEach(b => {
-                b.mesh.position.add(b.vel);
-                if(Math.abs(b.mesh.position.x) > 3) b.vel.x *= -1;
-                if(Math.abs(b.mesh.position.y) > 3) b.vel.y *= -1;
+            let p = (isListening || isSpeaking) ? Math.sin(t*0.01)*0.2 + 1.2 : 1.0;
+            blobs.forEach((b, i) => {
+                b.mesh.scale.setScalar(p + Math.sin(t * b.speed + b.offset) * 0.1);
+                b.mesh.position.x += Math.cos(t * 0.001 + i) * 0.005;
             });
             renderer.render(scene, camera);
         }
-        animate();
+        animate(0);
     }
 
-    window.initApp = () => {
-        token = document.getElementById('hfToken').value.trim();
-        if(!token) return alert("Please enter your token.");
-        document.getElementById('login').style.display = 'none';
-        initBackground();
-        initMic();
-        speak("Hi, I'm Diya. I'm ready for our session.");
-    };
+    function initMic() {
+        const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new Speech();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.onresult = (e) => {
+            let f = '';
+            for (let i = e.resultIndex; i < e.results.length; ++i) { if (e.results[i].isFinal) f += e.results[i][0].transcript; }
+            if (f) { toggleMic(false); askAI(f); }
+        };
+        recognition.onstart = () => { isListening = true; updateStatus("Listening", "var(--g-red)"); document.getElementById('micBtn').classList.add('pulse'); };
+        recognition.onend = () => { isListening = false; document.getElementById('micBtn').classList.remove('pulse'); if(!isSpeaking) updateStatus("Ready", "var(--g-blue)"); };
+    }
 
-    async function askAI(input) {
+    async function askAI(text) {
         updateStatus("Thinking", "var(--g-yellow)");
         try {
             const res = await fetch("https://api-inference.huggingface.co/v1/chat/completions", {
@@ -158,63 +187,116 @@
                 headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
                 body: JSON.stringify({
                     model: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
-                    messages: [{ role: "user", content: `You are Diya, a tutor. Answer briefly: ${input}` }],
-                    max_tokens: 100
+                    messages: [
+                        { role: "system", content: "You are Diya, an English tutor. Correct grammar starting with 'Actually...' then respond briefly. Keep it under 2 sentences. No markdown." },
+                        { role: "user", content: text }
+                    ]
                 })
             });
             const data = await res.json();
-            let reply = data.choices[0].message.content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+            const reply = data.choices[0].message.content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+            saveToHistory(text, reply);
             speak(reply);
-        } catch (e) {
-            updateStatus("Error", "var(--g-red)");
-            speak("My connection is weak. Can you repeat that?");
-        }
+        } catch (e) { speak("Connection lost."); }
     }
 
-    function initMic() {
-        const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
-        recognition = new Speech();
-        recognition.onstart = () => {
-            updateStatus("Listening", "var(--g-red)");
-            document.getElementById('micBtn').classList.add('pulse');
-        };
-        recognition.onresult = (e) => {
-            const t = e.results[0][0].transcript;
-            document.getElementById('transcript').innerText = t;
-            askAI(t);
-        };
-        recognition.onend = () => {
-            document.getElementById('micBtn').classList.remove('pulse');
-        };
+    function saveToHistory(u, d) {
+        historyData.push({ id: Date.now(), u, d });
+        localStorage.setItem('diya_history', JSON.stringify(historyData));
+        renderHistory();
     }
 
-    function speak(text) {
+    function renderHistory() {
+        document.getElementById('history-list').innerHTML = historyData.map(h => `
+            <div class="history-item">
+                <span class="del-one" onclick="deleteEntry(${h.id})">✕</span>
+                <div style="opacity:0.5; font-size:10px; font-weight: 700;">USER</div>
+                <div style="margin-bottom: 8px;">"${h.u}"</div>
+                <div style="opacity:0.5; font-size:10px; font-weight: 700;">DIYA</div>
+                <div>${h.d}</div>
+            </div>
+        `).join('');
+    }
+
+    function deleteEntry(id) { historyData = historyData.filter(h => h.id !== id); localStorage.setItem('diya_history', JSON.stringify(historyData)); renderHistory(); }
+    function clearHistory() { if(confirm("Clear history?")) { historyData=[]; localStorage.removeItem('diya_history'); renderHistory(); } }
+    
+    function togglePanel(id) {
+        const p = document.getElementById(id);
+        const v = p.style.display === 'block';
+        document.querySelectorAll('.panel').forEach(x => x.style.display = 'none');
+        p.style.display = v ? 'none' : 'block';
+    }
+
+    function loadVoices() {
+        const voiceList = document.getElementById('voice-list');
+        voiceList.innerHTML = '';
+        
+        // Filter for English and get exactly 4
+        let voices = synth.getVoices().filter(v => v.lang.startsWith('en'));
+        if (voices.length === 0) voices = synth.getVoices(); // Fallback if no English
+        
+        const selection = voices.slice(0, 4);
+        selection.forEach((v, i) => {
+            const d = document.createElement('div');
+            d.className = `voice-option ${i === 0 ? 'active' : ''}`;
+            d.innerHTML = `
+                <div style="display:flex; flex-direction:column;">
+                    <span style="font-weight:700; font-size: 13px;">Voice Profile ${i+1}</span>
+                    <small style="opacity:0.4; font-size: 10px;">${v.name.split(' ')[0]}</small>
+                </div>
+                <div style="font-size: 10px; opacity: 0.3;">${v.lang.split('-')[1] || 'US'}</div>
+            `;
+            d.onclick = () => { 
+                selectedVoice = v; 
+                document.querySelectorAll('.voice-option').forEach(x => x.classList.remove('active')); 
+                d.classList.add('active'); 
+            };
+            voiceList.appendChild(d);
+            if(i === 0) selectedVoice = v;
+        });
+    }
+
+    function speak(t) {
         isSpeaking = true;
-        recognition.stop();
         updateStatus("Speaking", "var(--g-green)");
-        const msg = new SpeechSynthesisUtterance(text);
-        msg.onstart = () => document.getElementById('transcript').innerText = text;
-        msg.onend = () => {
-            isSpeaking = false;
-            updateStatus("Ready", "var(--g-blue)");
-        };
-        synth.speak(msg);
+        const m = new SpeechSynthesisUtterance(t);
+        if(selectedVoice) m.voice = selectedVoice;
+        m.onstart = () => document.getElementById('transcript').innerText = t;
+        m.onend = () => { isSpeaking = false; updateStatus("Ready", "var(--g-blue)"); };
+        synth.speak(m);
     }
 
-    function updateStatus(text, color) {
-        document.getElementById('status-text').innerText = text;
-        document.getElementById('status-dot').style.backgroundColor = color;
-    }
-
-    window.toggleMic = () => { 
+    window.toggleMic = (f) => {
         if(isSpeaking) synth.cancel();
-        try { recognition.start(); } catch(e) { recognition.stop(); } 
+        const t = (f !== undefined) ? f : !isListening;
+        if(t) { try { recognition.start(); } catch(e) {} } else { recognition.stop(); }
     };
 
+    function updateStatus(t, c) { document.getElementById('status-text').innerText = t; document.getElementById('status-dot').style.backgroundColor = c; }
+
+    function initApp() {
+        token = document.getElementById('hfToken').value.trim();
+        if(!token) return alert("Token required.");
+        document.getElementById('login').style.display = 'none';
+        initBackground();
+        initMic();
+        loadVoices();
+        renderHistory();
+        speak("I am ready for our lesson.");
+    }
+    
+    // Voices can load asynchronously
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = loadVoices;
+    }
+    
     window.addEventListener('resize', () => {
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
+        if(renderer) {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+        }
     });
 </script>
 </body>
