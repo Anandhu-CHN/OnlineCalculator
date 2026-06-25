@@ -45,6 +45,9 @@
         <br><br><br>
 
         <button style="width: auto; background: #c2410c;" onclick="document.getElementById('newsModal').style.display='block'">📢 Live News</button>
+        <button onclick="rollbackToOriginal()" style="background: linear-gradient(135deg, #64748b 0%, #475569 100%); margin-top: 12px; box-shadow: 0 4px 6px -1px rgba(71, 85, 105, 0.2);">
+    ⚠️ Rollback to Local Version
+        </button>
         <input type="text" id="task-input" placeholder="Task Name">
         <input type="time" id="time-input">
         <button onclick="addTimedTask()">Schedule</button>
@@ -236,7 +239,26 @@ function renderTT() {
         let tasks = JSON.parse(localStorage.getItem('tasks') || '[]');
         tasks.forEach(task => { if(task.time === currentTime) new Notification("GATE 2027 Reminder", { body: `Time for: ${task.t}` }); });
     }, 60000);
-    window.onload = init;
+    window.onload = init;  
+
+
+    // ==========================================
+// EMERGENCY SAFETY ROLLBACK MECHANISM
+// ==========================================
+function rollbackToOriginal() {
+    // Confirm with the user first
+    const confirmRollback = confirm("Are you sure you want to discard the remote GitHub update and revert back to your original local file layout? (Your saved tasks will remain safe!)");
+    
+    if (confirmRollback) {
+        // Remove the cached layout wrapper string entirely
+        localStorage.removeItem('cached_dashboard_html');
+        
+        // Reload the view immediately to render the default hardcoded structure
+        window.location.reload();
+    }
+}
+
+    
 </script>
 </body>
 </html>
